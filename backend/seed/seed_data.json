@@ -1,0 +1,269 @@
+{
+  "parts": [
+    {
+      "part_number": "PS11752778",
+      "name": "Dishwasher Door Latch Assembly",
+      "price": "$32.79",
+      "in_stock": true,
+      "description": "This door latch assembly is a genuine OEM replacement part for your dishwasher. If your dishwasher won't start or the door won't latch properly, this part may solve the issue. Compatible with Whirlpool, KitchenAid, Kenmore, and Maytag dishwashers.",
+      "source_url": "https://www.partselect.com/PS11752778-Whirlpool-WPW10653840-Door-Latch-Assembly.htm",
+      "manufacturer_part_number": "WPW10653840",
+      "compatible_models": ["WDT780SAEM1", "WDT750SAHZ0", "WDF520PADM7", "KDTM354DSS4", "MDB8959SFZ4", "WDT730PAHZ0", "KDTE334GPS0"],
+      "installation_steps": [
+        "Disconnect power to the dishwasher.",
+        "Open the dishwasher door and remove the inner door panel screws.",
+        "Carefully separate the inner door panel from the outer door.",
+        "Disconnect the wire harness from the old latch assembly.",
+        "Remove the mounting screws holding the old latch in place.",
+        "Install the new latch assembly and secure with mounting screws.",
+        "Reconnect the wire harness.",
+        "Reassemble the door panels and secure with screws.",
+        "Restore power and test the door latch."
+      ],
+      "symptoms": ["not starting", "door won't latch", "door won't close"]
+    },
+    {
+      "part_number": "PS11743427",
+      "name": "Refrigerator Water Filter",
+      "price": "$49.99",
+      "in_stock": true,
+      "description": "Genuine OEM EveryDrop water filter for Whirlpool, KitchenAid, Maytag, and Amana refrigerators. Reduces contaminants including lead, mercury, and pharmaceuticals. NSF certified. Replace every 6 months for optimal performance.",
+      "source_url": "https://www.partselect.com/PS11743427-Whirlpool-EDR1RXD1-Refrigerator-Water-Filter.htm",
+      "manufacturer_part_number": "EDR1RXD1",
+      "compatible_models": ["WRS325SDHZ08", "WRF555SDFZ11", "WRS571CIHZ01", "KRFF507HPS01", "MFI2570FEZ06", "WRX735SDHZ00", "WRS588FIHZ04"],
+      "installation_steps": [
+        "Locate the water filter compartment (usually in the upper right corner of the refrigerator).",
+        "Turn the old filter counterclockwise to release it.",
+        "Pull the old filter straight out.",
+        "Remove the cap from the new filter if applicable.",
+        "Insert the new filter into the housing.",
+        "Turn clockwise until it locks into place.",
+        "Run 4 gallons of water through the dispenser to flush the new filter.",
+        "Reset the filter indicator light if applicable."
+      ],
+      "symptoms": ["bad water taste", "slow water flow", "water filter light on"]
+    },
+    {
+      "part_number": "PS11748356",
+      "name": "Refrigerator Ice Maker Assembly",
+      "price": "$89.95",
+      "in_stock": true,
+      "description": "Complete ice maker assembly replacement for Whirlpool and KitchenAid refrigerators. Includes ice mold, ejector arm, and wiring harness. Replaces a non-functioning ice maker that won't produce ice or produces misshapen ice.",
+      "source_url": "https://www.partselect.com/PS11748356-Whirlpool-WPW10469286-Ice-Maker-Assembly.htm",
+      "manufacturer_part_number": "WPW10469286",
+      "compatible_models": ["WRS325SDHZ08", "WRF555SDFZ11", "WRS571CIHZ01", "KRFF507HPS01", "WRX735SDHZ00", "WRS588FIHZ04", "GSS26C5XXB03"],
+      "installation_steps": [
+        "Unplug the refrigerator or turn off the circuit breaker.",
+        "Remove the ice bin from the freezer compartment.",
+        "Locate the ice maker mounting screws (usually 2-3 screws).",
+        "Disconnect the wiring harness from the ice maker.",
+        "Remove the mounting screws and lift out the old ice maker.",
+        "Position the new ice maker and align with mounting holes.",
+        "Secure with mounting screws.",
+        "Connect the wiring harness.",
+        "Replace the ice bin.",
+        "Restore power and allow 24 hours for ice production to begin."
+      ],
+      "symptoms": ["ice maker not working", "no ice", "ice maker not making ice"]
+    },
+    {
+      "part_number": "PS11752927",
+      "name": "Dishwasher Spray Arm Assembly (Upper)",
+      "price": "$24.49",
+      "in_stock": true,
+      "description": "Upper spray arm assembly for Whirlpool, KitchenAid, and Kenmore dishwashers. If your dishes on the upper rack are not getting clean, this spray arm replacement can restore proper water distribution.",
+      "source_url": "https://www.partselect.com/PS11752927-Whirlpool-WPW10491331-Spray-Arm-Upper.htm",
+      "manufacturer_part_number": "WPW10491331",
+      "compatible_models": ["WDT780SAEM1", "WDT750SAHZ0", "KDTM354DSS4", "WDF520PADM7", "MDB8959SFZ4", "KDTE334GPS0", "WDT730PAHZ0"],
+      "installation_steps": [
+        "Remove the upper dish rack from the dishwasher.",
+        "Reach up and unscrew the spray arm retainer nut (turn counterclockwise).",
+        "Pull the old spray arm straight down to remove it.",
+        "Place the new spray arm onto the water supply tube.",
+        "Thread the retainer nut clockwise and hand-tighten.",
+        "Replace the upper dish rack.",
+        "Run a test cycle to verify proper spray pattern."
+      ],
+      "symptoms": ["not cleaning", "dishes not clean", "upper rack not clean"]
+    },
+    {
+      "part_number": "PS11749827",
+      "name": "Refrigerator Water Inlet Valve",
+      "price": "$54.89",
+      "in_stock": true,
+      "description": "Dual-outlet water inlet valve for Whirlpool, KitchenAid, and Kenmore refrigerators. Controls water flow to the ice maker and water dispenser. Replace if you have low water pressure, no water to the ice maker, or a leaking valve.",
+      "source_url": "https://www.partselect.com/PS11749827-Whirlpool-WPW10394076-Water-Inlet-Valve.htm",
+      "manufacturer_part_number": "WPW10394076",
+      "compatible_models": ["WRS325SDHZ08", "WRF555SDFZ11", "WRS571CIHZ01", "WRX735SDHZ00", "WRS588FIHZ04", "GSS26C5XXB03", "GX5FHDXVB03"],
+      "installation_steps": [
+        "Unplug the refrigerator and turn off the water supply.",
+        "Pull the refrigerator away from the wall.",
+        "Remove the lower back access panel.",
+        "Disconnect the water supply line from the old valve.",
+        "Disconnect the electrical connectors from the valve.",
+        "Remove the mounting screws holding the valve in place.",
+        "Install the new valve and secure with mounting screws.",
+        "Reconnect electrical connectors and water supply line.",
+        "Replace the access panel.",
+        "Turn on water supply, plug in the refrigerator, and check for leaks."
+      ],
+      "symptoms": ["leaking water", "ice maker not working", "no water", "low water pressure"]
+    },
+    {
+      "part_number": "PS11750470",
+      "name": "Dishwasher Drain Pump Motor",
+      "price": "$38.95",
+      "in_stock": true,
+      "description": "Drain pump motor assembly for Whirlpool, KitchenAid, and Maytag dishwashers. If your dishwasher has standing water at the bottom after a cycle, the drain pump motor may need to be replaced.",
+      "source_url": "https://www.partselect.com/PS11750470-Whirlpool-WPW10348269-Drain-Pump-Motor.htm",
+      "manufacturer_part_number": "WPW10348269",
+      "compatible_models": ["WDT780SAEM1", "WDT750SAHZ0", "KDTM354DSS4", "MDB8959SFZ4", "WDF520PADM7", "KDTE334GPS0"],
+      "installation_steps": [
+        "Disconnect power to the dishwasher.",
+        "Remove the lower front kick plate.",
+        "Place towels under the dishwasher to catch residual water.",
+        "Disconnect the drain hose from the pump.",
+        "Disconnect the electrical connector.",
+        "Turn the pump counterclockwise to unlock and remove it.",
+        "Install the new pump by aligning and turning clockwise to lock.",
+        "Reconnect the electrical connector and drain hose.",
+        "Replace the kick plate and restore power.",
+        "Run a test cycle to verify draining."
+      ],
+      "symptoms": ["not draining", "standing water", "won't drain"]
+    },
+    {
+      "part_number": "PS11740240",
+      "name": "Refrigerator Evaporator Fan Motor",
+      "price": "$41.75",
+      "in_stock": true,
+      "description": "Evaporator fan motor for Whirlpool, KitchenAid, and Kenmore refrigerators. This fan circulates cold air throughout the refrigerator and freezer. If your refrigerator is not cooling properly or making unusual noises, this motor may need replacement.",
+      "source_url": "https://www.partselect.com/PS11740240-Whirlpool-WPW10189703-Evaporator-Fan-Motor.htm",
+      "manufacturer_part_number": "WPW10189703",
+      "compatible_models": ["WRS325SDHZ08", "WRS571CIHZ01", "WRX735SDHZ00", "WRS588FIHZ04", "GSS26C5XXB03", "GX5FHDXVB03"],
+      "installation_steps": [
+        "Unplug the refrigerator.",
+        "Remove all items from the freezer.",
+        "Remove the freezer shelves and the evaporator cover panel (screws along the edges).",
+        "Disconnect the wire harness from the fan motor.",
+        "Remove the mounting screws or clips holding the motor.",
+        "Remove the fan blade from the old motor shaft.",
+        "Attach the fan blade to the new motor shaft.",
+        "Mount the new motor and secure with screws or clips.",
+        "Reconnect the wire harness.",
+        "Reinstall the evaporator cover, shelves, and contents.",
+        "Plug in the refrigerator."
+      ],
+      "symptoms": ["not cooling", "noisy", "warm refrigerator", "freezer not cold"]
+    },
+    {
+      "part_number": "PS11757023",
+      "name": "Dishwasher Door Gasket",
+      "price": "$28.50",
+      "in_stock": true,
+      "description": "Door gasket seal for Whirlpool, KitchenAid, and Kenmore dishwashers. Creates a watertight seal around the dishwasher door. Replace if your dishwasher is leaking water from around the door during operation.",
+      "source_url": "https://www.partselect.com/PS11757023-Whirlpool-WPW10300924-Door-Gasket.htm",
+      "manufacturer_part_number": "WPW10300924",
+      "compatible_models": ["WDT780SAEM1", "WDT750SAHZ0", "WDF520PADM7", "KDTM354DSS4", "MDB8959SFZ4", "WDT730PAHZ0"],
+      "installation_steps": [
+        "Open the dishwasher door fully.",
+        "Starting at the top corner, peel the old gasket out of the door channel.",
+        "Clean the door channel with warm soapy water and a cloth.",
+        "Starting at the top center, press the new gasket into the channel.",
+        "Work your way around both sides, pressing firmly.",
+        "Ensure the gasket is seated evenly with no gaps or bulges.",
+        "Close the door to check alignment.",
+        "Run a test cycle to verify no leaking."
+      ],
+      "symptoms": ["leaking", "water on floor", "door leaking"]
+    },
+    {
+      "part_number": "PS11752505",
+      "name": "Refrigerator Door Gasket (French Door - Left)",
+      "price": "$62.30",
+      "in_stock": true,
+      "description": "Left side door gasket for Whirlpool and KitchenAid French door refrigerators. Provides an airtight seal to maintain proper temperature. Replace if the gasket is torn, cracked, or not sealing properly.",
+      "source_url": "https://www.partselect.com/PS11752505-Whirlpool-WPW10714545-Door-Gasket-Left.htm",
+      "manufacturer_part_number": "WPW10714545",
+      "compatible_models": ["WRF555SDFZ11", "KRFF507HPS01", "MFI2570FEZ06", "WRX735SDHZ00"],
+      "installation_steps": [
+        "Open the refrigerator door.",
+        "Starting at the top corner, pull the old gasket away from the door.",
+        "The gasket is held by a retainer that fits behind the door liner — pull it free.",
+        "Soak the new gasket in warm water for a few minutes to make it pliable.",
+        "Starting at the top, push the new gasket retainer behind the door liner.",
+        "Work around all four sides, pressing firmly.",
+        "Close the door and check the seal — the gasket should compress evenly.",
+        "If needed, apply gentle heat with a hair dryer to help the gasket conform."
+      ],
+      "symptoms": ["leaking water", "not cooling", "sweating", "condensation"]
+    },
+    {
+      "part_number": "PS11703540",
+      "name": "Refrigerator Compressor Start Relay",
+      "price": "$18.99",
+      "in_stock": true,
+      "description": "Compressor start relay and overload assembly for Whirlpool, KitchenAid, and Kenmore refrigerators. If your refrigerator clicks on and off or won't start, the start relay may be faulty. Simple plug-in replacement.",
+      "source_url": "https://www.partselect.com/PS11703540-Whirlpool-WPW10613606-Start-Relay.htm",
+      "manufacturer_part_number": "WPW10613606",
+      "compatible_models": ["WRS325SDHZ08", "WRS571CIHZ01", "WRF555SDFZ11", "WRX735SDHZ00", "WRS588FIHZ04", "GSS26C5XXB03"],
+      "installation_steps": [
+        "Unplug the refrigerator.",
+        "Pull the refrigerator away from the wall.",
+        "Remove the lower back access panel.",
+        "Locate the compressor — the start relay is attached to the side.",
+        "Pull the old relay straight off the compressor pins.",
+        "If there is a wire connector, unplug it.",
+        "Plug the new relay onto the compressor pins in the same orientation.",
+        "Reconnect any wire connectors.",
+        "Replace the access panel.",
+        "Plug in the refrigerator."
+      ],
+      "symptoms": ["not cooling", "clicking", "won't start", "runs then stops"]
+    }
+  ],
+  "search_indexes": [
+    {
+      "query": "water filter",
+      "appliance_type": "refrigerator",
+      "results": [
+        {"part_number": "PS11743427", "name": "Refrigerator Water Filter", "price": "$49.99", "url": "https://www.partselect.com/PS11743427-Whirlpool-EDR1RXD1-Refrigerator-Water-Filter.htm"}
+      ]
+    },
+    {
+      "query": "spray arm",
+      "appliance_type": "dishwasher",
+      "results": [
+        {"part_number": "PS11752927", "name": "Dishwasher Spray Arm Assembly (Upper)", "price": "$24.49", "url": "https://www.partselect.com/PS11752927-Whirlpool-WPW10491331-Spray-Arm-Upper.htm"}
+      ]
+    },
+    {
+      "query": "ice maker",
+      "appliance_type": "refrigerator",
+      "results": [
+        {"part_number": "PS11748356", "name": "Refrigerator Ice Maker Assembly", "price": "$89.95", "url": "https://www.partselect.com/PS11748356-Whirlpool-WPW10469286-Ice-Maker-Assembly.htm"}
+      ]
+    },
+    {
+      "query": "door latch",
+      "appliance_type": "dishwasher",
+      "results": [
+        {"part_number": "PS11752778", "name": "Dishwasher Door Latch Assembly", "price": "$32.79", "url": "https://www.partselect.com/PS11752778-Whirlpool-WPW10653840-Door-Latch-Assembly.htm"}
+      ]
+    },
+    {
+      "query": "drain pump",
+      "appliance_type": "dishwasher",
+      "results": [
+        {"part_number": "PS11750470", "name": "Dishwasher Drain Pump Motor", "price": "$38.95", "url": "https://www.partselect.com/PS11750470-Whirlpool-WPW10348269-Drain-Pump-Motor.htm"}
+      ]
+    },
+    {
+      "query": "door gasket",
+      "appliance_type": "dishwasher",
+      "results": [
+        {"part_number": "PS11757023", "name": "Dishwasher Door Gasket", "price": "$28.50", "url": "https://www.partselect.com/PS11757023-Whirlpool-WPW10300924-Door-Gasket.htm"}
+      ]
+    }
+  ]
+}

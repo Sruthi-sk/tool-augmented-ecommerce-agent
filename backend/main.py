@@ -17,6 +17,7 @@ from tools.part_details import register_part_details_tool
 from tools.compatibility import register_compatibility_tool
 from tools.installation import register_installation_tool
 from tools.symptom import register_symptom_tool
+from seed.loader import load_seed_data
 
 # Global orchestrator — initialized on startup
 _orchestrator: Optional[AgentOrchestrator] = None
@@ -50,6 +51,9 @@ async def lifespan(app: FastAPI):
     register_compatibility_tool(registry, cache, retriever)
     register_installation_tool(registry, cache, retriever)
     register_symptom_tool(registry, cache, retriever)
+
+    # Load seed data into cache
+    await load_seed_data(cache)
 
     # Create provider and orchestrator
     provider = _create_provider(LLM_PROVIDER)
