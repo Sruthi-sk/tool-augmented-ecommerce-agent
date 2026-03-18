@@ -1,65 +1,131 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useCallback } from "react";
+import { ChatMessage, DetailData } from "@/types/chat";
+import { sendMessage } from "@/lib/api";
+import ChatPanel from "@/components/ChatPanel";
+import DetailPanel from "@/components/DetailPanel";
+
+const WELCOME_MESSAGE: ChatMessage = {
+  id: "welcome",
+  role: "assistant",
+  content:
+    "Hi! I'm the PartSelect Parts Assistant. I can help you find refrigerator and dishwasher parts, check compatibility, get installation guides, and troubleshoot problems. What can I help you with?",
+};
 
 export default function Home() {
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [suggestedActions, setSuggestedActions] = useState<string[]>([]);
+  const [detailData, setDetailData] = useState<DetailData | null>(null);
+  const [responseType, setResponseType] = useState<string | null>(null);
+
+  const handleSend = useCallback(async () => {
+    const text = input.trim();
+    if (!text || isLoading) return;
+
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: text,
+    };
+
+    const loadingMsg: ChatMessage = {
+      id: `loading-${Date.now()}`,
+      role: "assistant",
+      content: "",
+      isLoading: true,
+    };
+
+    setMessages((prev) => [...prev, userMsg, loadingMsg]);
+    setInput("");
+    setIsLoading(true);
+    setSuggestedActions([]);
+
+    try {
+      const response = await sendMessage(text);
+
+      const assistantMsg: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: response.message,
+        detailData: response.detail_data,
+        responseType: response.response_type,
+        sourceUrl: response.source_url,
+        suggestedActions: response.suggested_actions,
+      };
+
+      setMessages((prev) =>
+        prev.filter((m) => !m.isLoading).concat(assistantMsg)
+      );
+      setSuggestedActions(response.suggested_actions || []);
+
+      if (response.detail_data) {
+        setDetailData(response.detail_data);
+        setResponseType(response.response_type);
+      }
+    } catch (error) {
+      const errorMsg: ChatMessage = {
+        id: `error-${Date.now()}`,
+        role: "assistant",
+        content:
+          "I'm having trouble connecting right now. Please make sure the backend is running and try again.",
+      };
+      setMessages((prev) =>
+        prev.filter((m) => !m.isLoading).concat(errorMsg)
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [input, isLoading]);
+
+  const handleSuggestionSelect = useCallback(
+    (action: string) => {
+      setInput(action);
+    },
+    []
+  );
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="h-screen flex flex-col">
+      {/* Header */}
+      <header className="bg-[var(--ps-blue)] text-white px-6 py-3 flex items-center gap-3 shadow-md flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded bg-white flex items-center justify-center">
+            <span className="text-[var(--ps-blue)] font-bold text-sm">PS</span>
+          </div>
+          <div>
+            <h1 className="text-base font-semibold leading-tight">
+              PartSelect
+            </h1>
+            <p className="text-[10px] text-blue-200 leading-tight">
+              Parts Assistant
+            </p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </header>
+
+      {/* Main content — split panel */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Chat panel */}
+        <div className="w-1/2 border-r border-[var(--ps-gray-200)] flex flex-col min-w-0">
+          <ChatPanel
+            messages={messages}
+            suggestedActions={suggestedActions}
+            input={input}
+            isLoading={isLoading}
+            onInputChange={setInput}
+            onSend={handleSend}
+            onSuggestionSelect={handleSuggestionSelect}
+          />
         </div>
-      </main>
+
+        {/* Detail panel */}
+        <div className="w-1/2 overflow-y-auto custom-scrollbar p-4 bg-[var(--ps-gray-50)] min-w-0">
+          <DetailPanel responseType={responseType} data={detailData} />
+        </div>
+      </div>
     </div>
   );
 }
