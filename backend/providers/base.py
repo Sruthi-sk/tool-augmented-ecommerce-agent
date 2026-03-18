@@ -47,3 +47,4 @@ class LLMProvider(ABC):
     ) -> AsyncIterator[LLMChunk]:
         """Stream response chunks."""
         ...
+
