@@ -6,6 +6,7 @@ import CompatibilityResult from "./CompatibilityResult";
 import InstallationGuide from "./InstallationGuide";
 import TroubleshootingFlow from "./TroubleshootingFlow";
 import SearchResults from "./SearchResults";
+import ModelOverview from "./ModelOverview";
 
 interface Props {
   responseType: string | null;
@@ -56,6 +57,8 @@ export default function DetailPanel({ responseType, data }: Props) {
       return <TroubleshootingFlow data={data} />;
     case "search_results":
       return <SearchResults data={data} />;
+    case "model_overview":
+      return <ModelOverview data={data} />;
     default:
       return <ProductCard data={data} />;
   }

@@ -15,7 +15,7 @@ _DISHWASHER_KEYWORDS = {
     "wash cycle", "rinse aid", "dish rack", "silverware basket",
 }
 _PART_KEYWORDS = {
-    "part", "parts", "replace", "replacement", "install", "installation",
+    "part", "parts", "model", "replace", "replacement", "install", "installation",
     "fix", "repair", "broken", "not working", "compatible", "compatibility",
     "filter", "valve", "motor", "pump", "gasket", "thermostat", "relay",
     "board", "sensor", "hose", "tube", "drawer", "shelf", "handle",
@@ -29,8 +29,11 @@ _BRANDS = {
 # Part number pattern: PS followed by digits
 _PART_NUMBER_RE = re.compile(r"\bPS\d{6,10}\b", re.IGNORECASE)
 
-# Model number pattern: alphanumeric, at least one letter and one digit, 6+ chars
-_MODEL_NUMBER_RE = re.compile(r"\b[A-Z]{2,}[\w-]*\d[\w-]*\b", re.IGNORECASE)
+# Model number pattern: alphanumeric (at least one letter and one digit, 6+ chars)
+# OR all-digit strings of 8+ chars (common for Kenmore models like 10650022211)
+_MODEL_NUMBER_RE = re.compile(
+    r"\b(?:[A-Z]{2,}[\w-]*\d[\w-]*|\d{8,})\b", re.IGNORECASE
+)
 
 # Filter out common false positives for model numbers
 _MODEL_FALSE_POSITIVES = {
@@ -84,7 +87,9 @@ def preprocess(message: str) -> PreprocessResult:
             and not _PART_NUMBER_RE.match(candidate)
             and len(candidate) >= 6
             and any(c.isdigit() for c in candidate)
-            and any(c.isalpha() for c in candidate)
+            # All-digit model numbers (8+ chars, e.g. Kenmore) are valid;
+            # mixed alphanumeric also valid.
+            and (candidate.isdigit() or any(c.isalpha() for c in candidate))
         ):
             entities["model_number"] = candidate.upper()
             break

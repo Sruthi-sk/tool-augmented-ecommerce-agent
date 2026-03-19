@@ -86,7 +86,13 @@ def register_symptom_tool(
 ) -> None:
     @registry.register(
         name="diagnose_symptom",
-        description="Diagnose an appliance problem by symptom. Returns possible causes and recommended replacement parts.",
+        description=(
+            "Diagnose a symptom for a refrigerator or dishwasher. "
+            "Call this tool immediately when the user describes a problem — do not ask for "
+            "brand or model number first. `model_number` is optional; provide it only if "
+            "already known. It is used for model-specific part matching, "
+            "not for initial symptom triage."
+        ),
         parameters={
             "type": "object",
             "properties": {
@@ -117,7 +123,7 @@ def register_symptom_tool(
                 symptom=symptom,
                 model_number=model_number,
             )
-            likely_causes = structured.get("causes") or []
+            likely_causes = structured.get("causes") or structured.get("likely_causes") or []
             source_urls = structured.get("source_urls") or []
             if likely_causes:
                 return {
@@ -127,6 +133,7 @@ def register_symptom_tool(
                     "appliance_type": appliance_type,
                     "model_number": model_number,
                     "source_url": source_urls[0] if source_urls else "",
+                    "repair_guide_text": structured.get("repair_guide_text"),
                 }
         except Exception:
             pass
@@ -139,4 +146,5 @@ def register_symptom_tool(
             "message": f"I don't have specific troubleshooting data for '{symptom}' on {appliance_type}s. "
                        f"Please visit partselect.com for more repair help.",
             "source_url": f"https://www.partselect.com/Repair/{appliance_type.title()}/",
+            "repair_guide_text": None,
         }

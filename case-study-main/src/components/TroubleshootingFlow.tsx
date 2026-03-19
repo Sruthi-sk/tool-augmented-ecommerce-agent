@@ -44,9 +44,11 @@ export default function TroubleshootingFlow({ data }: Props) {
                     </p>
                   )}
                 </div>
-                <span className="text-[10px] uppercase font-semibold opacity-60 flex-shrink-0">
-                  {cause.likelihood}
-                </span>
+                {cause.likelihood && cause.likelihood !== "low" && (
+                  <span className="text-[10px] uppercase font-semibold opacity-60 flex-shrink-0">
+                    {cause.likelihood}
+                  </span>
+                )}
               </div>
             </div>
           ))

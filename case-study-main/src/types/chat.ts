@@ -25,11 +25,25 @@ export interface DetailData {
   source_url?: string;
   manufacturer_part_number?: string;
   compatible_models?: string[];
+  brand?: string;
+  availability?: string;
+  install_difficulty?: string;
+  install_time?: string;
+  replace_parts?: string;
+  symptoms_text?: string;
+  repair_rating?: string;
+  installation_steps?: string[];
+  symptoms?: string[];
 
   // compatibility
   compatible?: boolean;
   model_number?: string;
   compatible_models_count?: number;
+  model_not_found?: boolean;
+  model_description?: string;
+  model_details_url?: string;
+  similar_models_url?: string;
+  find_model_help_url?: string;
 
   // installation
   steps?: string[];
@@ -39,6 +53,12 @@ export interface DetailData {
   symptom?: string;
   matched_symptom?: string;
   message?: string;
+
+  // model_overview
+  model_title?: string;
+  common_symptoms?: string[];
+  sections?: string[];
+  part_categories?: { name: string; count?: number }[];
 
   // error
   error?: string;

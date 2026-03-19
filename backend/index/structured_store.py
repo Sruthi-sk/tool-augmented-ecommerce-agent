@@ -10,6 +10,8 @@ This layer must be the source of truth for exact facts:
 
 from __future__ import annotations
 
+import logging
+import re
 import time
 from dataclasses import asdict, dataclass
 from typing import Any, Optional
@@ -17,6 +19,8 @@ from typing import Any, Optional
 import aiosqlite
 
 from config import INDEX_DB_PATH
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -43,12 +47,66 @@ class CompatibilityResult:
     source_url: str
 
 
+# ── Symptom key normalization ────────────────────────────────────────────────
+# Bump this when the normalization logic changes.  Re-ingestion is required
+# after a version change so that stored symptom_keys match query-time keys.
+SYMPTOM_NORM_VERSION = 2
+
+# Common synonyms that users and ingestion sources express differently.
+# Maps variant → canonical form.  Applied after lowercasing.
+_SYMPTOM_SYNONYMS: dict[str, str] = {
+    "doesnt": "does not",
+    "doesn't": "does not",
+    "dont": "do not",
+    "don't": "do not",
+    "wont": "will not",
+    "won't": "will not",
+    "isnt": "is not",
+    "isn't": "is not",
+    "cant": "cannot",
+    "can't": "cannot",
+    "noisy": "making noise",
+    "loud": "making noise",
+    "leaks": "leaking",
+    "leak": "leaking",
+    "drips": "leaking",
+    "drip": "leaking",
+    "frosting": "frost buildup",
+    "icing": "frost buildup",
+    "icy": "frost buildup",
+}
+
+# Stop words removed from symptom keys — articles, prepositions, and filler
+# that don't carry diagnostic meaning.
+_STOP_WORDS: frozenset[str] = frozenset(
+    "a an the my our your its is are was were be been being "
+    "of in on for to at by with from and or but".split()
+)
+
+# Regex for punctuation stripping (keep alphanumeric + spaces).
+_PUNCT_RE = re.compile(r"[^a-z0-9\s]")
+
+
 def normalize_symptom_key(symptom: str) -> str:
-    """Deterministic symptom normalization used across structured ingestion."""
+    """Deterministic symptom normalization shared by ingestion and query-time.
+
+    Pipeline: lowercase → punctuation strip → synonym replacement →
+    stop-word removal → whitespace collapse → sorted tokens.
+
+    Both ingestion (crawl_partselect.py, build_partselect_index.py) and
+    query-time (StructuredStore, KnowledgeService) import this function,
+    ensuring keys always match.
+    """
     s = (symptom or "").strip().lower()
-    # Minimal normalization; ingestion can choose richer mapping later.
-    s = " ".join(s.split())
-    return s
+    s = _PUNCT_RE.sub(" ", s)
+
+    # Apply synonym mapping (longest-first to avoid partial replacement).
+    for variant, canonical in _SYMPTOM_SYNONYMS.items():
+        s = s.replace(variant, canonical)
+
+    # Remove stop words and collapse whitespace.
+    tokens = [t for t in s.split() if t not in _STOP_WORDS]
+    return " ".join(tokens)
 
 
 class StructuredStore:
@@ -151,9 +209,14 @@ class StructuredStore:
             "repair_rating": part["repair_rating"] or None,
         }
 
-    async def search_parts(self, query: str, appliance_type: str) -> list[dict]:
+    async def search_parts(
+        self, query: str, appliance_type: str, model_number: Optional[str] = None
+    ) -> list[dict]:
         """
         Deterministic search over structured data.
+
+        When *model_number* is provided the results are filtered to parts that
+        are known-compatible with that model (via the part_compatibility table).
 
         Notes:
         - This is primarily for PartSelect-like keyword discovery (demo/demo test flows).
@@ -164,31 +227,53 @@ class StructuredStore:
         if not q:
             return []
 
-        # Appliance type currently lives in models; use a join for compatibility-model-driven search.
-        # If the dataset doesn't have models/appliance_type populated, we fall back to LIKE on parts fields.
-        rows: list[aiosqlite.Row] = []
-        try:
-            rows = await self._fetchall(
-                """
-                SELECT DISTINCT p.part_number, p.name, p.price, p.source_url
-                FROM parts p
-                JOIN part_compatibility pc ON pc.part_number = p.part_number
-                JOIN models m ON m.model_number = pc.model_number
-                WHERE m.appliance_type = ?
-                  AND (
-                    p.name LIKE '%' || ? || '%'
-                    OR p.description LIKE '%' || ? || '%'
-                  )
-                LIMIT 25
-                """,
-                (appliance_type, q, q),
-            )
-        except Exception:
-            rows = []
+        mn = (model_number or "").strip().upper() if model_number else ""
 
+        rows: list[aiosqlite.Row] = []
+
+        # ── Model-filtered search (highest priority) ────────────────────────
+        if mn:
+            try:
+                rows = await self._fetchall(
+                    """
+                    SELECT DISTINCT p.part_number, p.name, p.price, p.source_url
+                    FROM parts p
+                    JOIN part_compatibility pc ON pc.part_number = p.part_number
+                    WHERE pc.model_number = ?
+                      AND (
+                        p.name LIKE '%' || ? || '%'
+                        OR p.description LIKE '%' || ? || '%'
+                      )
+                    LIMIT 25
+                    """,
+                    (mn, q, q),
+                )
+            except Exception:
+                rows = []
+
+        # ── Appliance-type search (fallback when no model or no model hits) ─
         if not rows:
-            # If models/appliance_type aren't populated yet (Phase 0 bootstrap),
-            # fall back to keyword matching on `parts`.
+            try:
+                rows = await self._fetchall(
+                    """
+                    SELECT DISTINCT p.part_number, p.name, p.price, p.source_url
+                    FROM parts p
+                    JOIN part_compatibility pc ON pc.part_number = p.part_number
+                    JOIN models m ON m.model_number = pc.model_number
+                    WHERE m.appliance_type = ?
+                      AND (
+                        p.name LIKE '%' || ? || '%'
+                        OR p.description LIKE '%' || ? || '%'
+                      )
+                    LIMIT 25
+                    """,
+                    (appliance_type, q, q),
+                )
+            except Exception:
+                rows = []
+
+        # ── Bare keyword fallback (Phase 0 bootstrap / empty models table) ──
+        if not rows:
             rows = await self._fetchall(
                 """
                 SELECT part_number, name, price, source_url
@@ -209,6 +294,102 @@ class StructuredStore:
             }
             for r in rows
         ]
+
+    async def get_model_overview(self, model_number: str) -> Optional[dict]:
+        """Build a model overview from local DB data.
+
+        Returns None if the model is not in the database.
+        """
+        assert self._db is not None, "Call initialize() first"
+        mn = model_number.strip().upper()
+
+        # Basic model info
+        model = await self._fetchone(
+            "SELECT model_number, brand, appliance_type FROM models WHERE model_number = ?",
+            (mn,),
+        )
+        if not model:
+            return None
+
+        brand = model["brand"] or ""
+        appliance_type = model["appliance_type"] or ""
+
+        # Compatible parts (for part categories)
+        parts_rows = await self._fetchall(
+            """
+            SELECT p.part_number, p.name, p.price, p.source_url
+            FROM parts p
+            JOIN part_compatibility pc ON pc.part_number = p.part_number
+            WHERE pc.model_number = ?
+            ORDER BY p.name
+            """,
+            (mn,),
+        )
+
+        # Build part categories from part names
+        cat_counts: dict[str, int] = {}
+        for row in parts_rows:
+            name = row["name"] or ""
+            # Extract the main category word(s) — e.g. "Water Filter", "Ice Maker"
+            # Use the full name as the category since parts have descriptive names
+            cat_counts[name] = cat_counts.get(name, 0) + 1
+
+        part_categories = [
+            {"name": name, "count": count}
+            for name, count in sorted(cat_counts.items())
+        ]
+
+        # Symptoms from repair stories for parts compatible with this model
+        symptom_rows = await self._fetchall(
+            """
+            SELECT DISTINCT ps.symptom_key
+            FROM part_symptoms ps
+            JOIN part_compatibility pc ON pc.part_number = ps.part_number
+            WHERE pc.model_number = ?
+            ORDER BY ps.symptom_key
+            LIMIT 30
+            """,
+            (mn,),
+        )
+        common_symptoms = [row["symptom_key"] for row in symptom_rows]
+
+        # Also get structured troubleshooting symptoms for this appliance type
+        if appliance_type:
+            ts_rows = await self._fetchall(
+                """
+                SELECT DISTINCT symptom_key
+                FROM troubleshooting_causes
+                WHERE appliance_type = ?
+                ORDER BY symptom_key
+                """,
+                (appliance_type,),
+            )
+            structured_symptoms = [row["symptom_key"] for row in ts_rows]
+        else:
+            structured_symptoms = []
+
+        # Build title
+        title_parts = [mn]
+        if brand:
+            title_parts.append(brand)
+        if appliance_type:
+            title_parts.append(appliance_type.capitalize())
+        model_title = " ".join(title_parts)
+
+        source_url = f"https://www.partselect.com/Models/{mn}/"
+
+        return {
+            "model_number": mn,
+            "model_title": model_title,
+            "brand": brand,
+            "appliance_type": appliance_type,
+            "common_symptoms": common_symptoms[:15],
+            "structured_symptoms": structured_symptoms[:15],
+            "sections": [],  # Only available from live scrape
+            "part_categories": part_categories[:20],
+            "parts_count": len(parts_rows),
+            "source_url": source_url,
+        }
 
     async def check_compatibility(self, part_number: str, model_number: str) -> dict:
         assert self._db is not None, "Call initialize() first"
@@ -246,26 +427,7 @@ class StructuredStore:
         compatible_models_count = len(compatible_models)
         compatible = any(mn == m for m in compatible_models)
 
-        # If the model isn't in our index but we have some models on record,
-        # we can't confidently say "incompatible" — the index may be partial.
-        # Only return compatible=False with high confidence when the part exists
-        # AND we have a meaningful number of models indexed.
-        index_complete = compatible_models_count >= 20
-        if not compatible and not index_complete:
-            return {
-                "compatible": None,  # unknown — not enough index coverage
-                "part_number": part_number,
-                "part_name": part["name"] or "",
-                "model_number": model_number,
-                "compatible_models_count": compatible_models_count,
-                "source_url": part["source_url"] or "",
-                "note": (
-                    "Compatibility could not be confirmed from the local index. "
-                    "Please verify on the PartSelect product page."
-                ),
-            }
-
-        evidence_url = ""
+        # Positive match: model is in our index → definitively compatible
         if compatible:
             evidence_url_row = await self._fetchone(
                 """
@@ -276,14 +438,26 @@ class StructuredStore:
                 (pn, mn),
             )
             evidence_url = evidence_url_row["evidence_url"] if evidence_url_row else ""
+            return {
+                "compatible": True,
+                "part_number": part_number,
+                "part_name": part["name"] or "",
+                "model_number": model_number,
+                "compatible_models_count": compatible_models_count,
+                "source_url": evidence_url or (part["source_url"] or ""),
+            }
 
+        # Negative: model not found in local index. The index is always
+        # partial (PartSelect paginates models, we only capture ~30), so
+        # we can never authoritatively say "incompatible" from local data.
+        # Return None to signal KnowledgeService to try the live check.
         return {
-            "compatible": compatible,
+            "compatible": None,
             "part_number": part_number,
             "part_name": part["name"] or "",
             "model_number": model_number,
             "compatible_models_count": compatible_models_count,
-            "source_url": evidence_url or (part["source_url"] or ""),
+            "source_url": part["source_url"] or "",
         }
 
     async def get_installation_steps(self, part_number: str) -> dict:
@@ -333,6 +507,11 @@ class StructuredStore:
         )
 
         if not rows:
+            logger.warning(
+                "No troubleshooting causes for appliance=%s symptom_key=%r "
+                "(raw=%r, norm_version=%d). Check ingestion normalization.",
+                appliance_type, symptom_key, symptom, SYMPTOM_NORM_VERSION,
+            )
             return {
                 "causes": [],
                 "likely_causes": [],

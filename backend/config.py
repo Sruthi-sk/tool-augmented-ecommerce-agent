@@ -14,6 +14,7 @@ CACHE_TTL_HOURS = int(os.getenv("CACHE_TTL_HOURS", "24"))
 CACHE_DB_PATH = os.getenv("CACHE_DB_PATH", "cache.db")
 
 CONVERSATION_HISTORY_LIMIT = 20
+MAX_TOOL_CALLS_PER_TURN = int(os.getenv("MAX_TOOL_CALLS_PER_TURN", "3"))
 
 # Pre-indexed retrieval (Phase 0 scaffolding; not wired into runtime yet)
 INDEX_DB_PATH = os.getenv("INDEX_DB_PATH", "partselect_index.db")

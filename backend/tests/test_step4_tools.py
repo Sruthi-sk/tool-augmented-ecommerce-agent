@@ -27,7 +27,12 @@ def mock_knowledge_service():
     ks.get_part_details = AsyncMock()
     ks.check_compatibility = AsyncMock()
     ks.get_installation_guide = AsyncMock()
-    ks.diagnose_troubleshooting = AsyncMock(return_value={"causes": [], "source_urls": []})
+    ks.diagnose_troubleshooting = AsyncMock(return_value={
+        "causes": [{"cause": "Faulty ice maker assembly", "part_type": "Ice Maker Assembly", "likelihood": "high"}],
+        "likely_causes": [{"cause": "Faulty ice maker assembly", "part_type": "Ice Maker Assembly", "likelihood": "high"}],
+        "source_urls": [],
+        "repair_guide_text": None,
+    })
     return ks
 
 

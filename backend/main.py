@@ -19,6 +19,7 @@ from tools.part_details import register_part_details_tool
 from tools.compatibility import register_compatibility_tool
 from tools.installation import register_installation_tool
 from tools.symptom import register_symptom_tool
+from tools.model import register_model_tool
 
 # Global orchestrator — initialized on startup
 _orchestrator: Optional[AgentOrchestrator] = None
@@ -60,6 +61,7 @@ async def lifespan(app: FastAPI):
     register_compatibility_tool(registry, knowledge_service=knowledge_service)
     register_installation_tool(registry, knowledge_service=knowledge_service)
     register_symptom_tool(registry, knowledge_service=knowledge_service)
+    register_model_tool(registry, knowledge_service=knowledge_service)
 
     # Create provider and orchestrator
     provider = _create_provider(LLM_PROVIDER)

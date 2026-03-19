@@ -5,6 +5,7 @@ from typing import Optional
 
 from agent.preprocessor import preprocess
 from agent.session import Session, SessionStore
+from config import MAX_TOOL_CALLS_PER_TURN
 from providers.base import LLMProvider, LLMResponse, ToolCall
 from tools.registry import ToolRegistry
 from agent.validation import validate_and_maybe_ground
@@ -19,7 +20,22 @@ RULES:
 - NEVER invent or guess product information. Only use data returned by your tools.
 - ALWAYS cite the source URL when providing factual product information.
 - If a tool returns no results, say so honestly — do not fabricate an answer.
-- If you need a model number or part number to help, ask for it.
+- When the user provides a model number (or one is stored in conversation context), \
+ALWAYS pass it as the `model_number` parameter to `search_parts` so results are \
+filtered to compatible parts. Do NOT search without the model number when one is known.
+- After calling `search_parts`, if results were returned and the user cares about \
+compatibility, call `check_compatibility` on the top result to confirm the fit before \
+recommending it.
+- When the user asks about a specific model number (e.g., "tell me about model X", \
+"what is model X"), call `lookup_model` to get model overview information. Do NOT use \
+`search_parts` for model-only queries.
+- For symptom or troubleshooting queries: ALWAYS call `diagnose_symptom` immediately — \
+do not ask for brand or model number first. Read the `repair_guide_text` field in the \
+result and use it to: (1) summarize the most likely causes in ranked order, \
+(2) ask the specific triage questions the guide implies (e.g. standing water present? \
+pump audible? drain hose kinked or blocked? dirty water backing up into tub?). \
+Do not request brand or model number on the same turn as a diagnosis. Ask for it only \
+in a subsequent turn, and only when you need it to match a specific compatible part.
 - Do not answer questions about other appliances, general knowledge, or unrelated topics.
   Politely redirect: "I can only help with refrigerator and dishwasher parts from PartSelect."
 
@@ -27,6 +43,10 @@ RESPONSE FORMAT:
 - Be concise and helpful.
 - Lead with the direct answer.
 - Include the source link when citing product data.
+- When a tool result contains a "note" field, include that note in your response.
+- When a tool result contains URLs like "model_details_url", "similar_models_url", or \
+"find_model_help_url", ALWAYS include them as clickable links in your response. These are \
+important PartSelect links that help the user verify their model number or find compatible parts.
 - Suggest logical next steps (e.g., "Would you like installation instructions?").
 
 CONVERSATION CONTEXT:
@@ -92,11 +112,13 @@ class AgentOrchestrator:
         registry: ToolRegistry,
         session_store: SessionStore,
         provider_name: str = "openai",
+        max_tool_calls: int = MAX_TOOL_CALLS_PER_TURN,
     ):
         self._provider = provider
         self._registry = registry
         self._session_store = session_store
         self._provider_name = provider_name
+        self._max_tool_calls = max_tool_calls
 
     async def handle_message(self, message: str, session_id: str) -> dict:
         """Process a user message through the full agent pipeline."""
@@ -164,12 +186,11 @@ class AgentOrchestrator:
         response_type = None
         source_url = None
 
-        max_tool_calls = 2
         tool_call_count = 0
 
-        # The LLM may request a first tool call, and optionally a second tool call
-        # if it needs more exact facts (e.g., search -> details -> compatibility).
-        while response.tool_calls and tool_call_count < max_tool_calls:
+        # The LLM may chain tool calls (e.g., search → details → compatibility).
+        # Limit is configurable via MAX_TOOL_CALLS_PER_TURN env var (default 3).
+        while response.tool_calls and tool_call_count < self._max_tool_calls:
             tool_call = response.tool_calls[0]  # Handle first tool call from this LLM response
 
             try:
@@ -179,7 +200,7 @@ class AgentOrchestrator:
                 tool_result = {"error": str(e)}
 
             detail_data = tool_result
-            source_url = tool_result.get("source_url")
+            source_url = tool_result.get("source_url") or (tool_result.get("source_urls") or [None])[0]
             response_type = self._infer_response_type(tool_call.name)
 
             # Update session with tool result (for follow-ups)
@@ -196,7 +217,7 @@ class AgentOrchestrator:
             # Next LLM call:
             # - If we can still call more tools, allow tool calling.
             # - Otherwise, disable tools to force natural language composition.
-            next_tools = tool_schemas if tool_call_count < max_tool_calls else []
+            next_tools = tool_schemas if tool_call_count < self._max_tool_calls else []
             try:
                 response = await self._provider.generate(llm_messages, system, next_tools)
             except Exception as e:
@@ -233,6 +254,7 @@ class AgentOrchestrator:
             "check_compatibility": "compatibility",
             "get_installation_guide": "installation",
             "diagnose_symptom": "troubleshooting",
+            "lookup_model": "model_overview",
         }
         return mapping.get(tool_name, "generic")
 
@@ -249,5 +271,15 @@ class AgentOrchestrator:
         elif response_type == "installation":
             return ["Check compatibility with my model", "View part details"]
         elif response_type == "troubleshooting":
+            if detail_data and detail_data.get("repair_guide_text"):
+                # Triage turn: repair guide was used; surface triage shortcuts
+                return [
+                    "Yes, standing water present",
+                    "Pump is silent",
+                    "Drain hose looks kinked",
+                    "None of these",
+                ]
             return ["Find replacement parts", "Check compatibility"]
+        elif response_type == "model_overview":
+            return ["Find parts for this model", "Troubleshoot a symptom", "View on PartSelect"]
         return []

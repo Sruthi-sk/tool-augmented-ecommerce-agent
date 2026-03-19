@@ -43,6 +43,36 @@ def compatibility_claims_match(text: str, expected_compatible: bool) -> bool:
         return "not compatible" in t or "incompatible" in t or "no" in t
 
 
+def _append_missing_links(message: str, detail_data: dict) -> str:
+    """Deterministically append important URLs/notes the LLM may have omitted."""
+    if not detail_data:
+        return message
+
+    additions = []
+
+    # If tool result has a `note` field and it's not already in the message, append it.
+    note = detail_data.get("note") or ""
+    if note and note not in message:
+        additions.append(note)
+
+    # Append specific PartSelect URLs if missing from the message.
+    for key, label in [
+        ("model_details_url", "Browse parts for your model"),
+        ("similar_models_url", "Search for similar models"),
+        ("find_model_help_url", "Need help finding your model number?"),
+    ]:
+        url = detail_data.get(key) or ""
+        if url and url not in message:
+            # Only add the labeled link if the note didn't already include it
+            if url not in (note or ""):
+                additions.append(f"[{label}]({url})")
+
+    if additions:
+        message = message.rstrip() + "\n\n" + "\n".join(additions)
+
+    return message
+
+
 def build_grounded_message(response_type: Optional[str], detail_data: Optional[dict]) -> str:
     detail_data = detail_data or {}
     if not response_type:
@@ -56,17 +86,31 @@ def build_grounded_message(response_type: Optional[str], detail_data: Optional[d
         part_number = detail_data.get("part_number") or ""
         model_number = detail_data.get("model_number") or ""
         part_name = detail_data.get("part_name") or ""
-        compatible = bool(detail_data.get("compatible"))
+        model_description = detail_data.get("model_description") or ""
+        compatible = detail_data.get("compatible")
         source_url = detail_data.get("source_url") or ""
+        note = detail_data.get("note") or ""
 
-        if compatible:
-            base = f"Yes — {part_number} is compatible with {model_number}."
+        model_label = f"{model_description} ({model_number})" if model_description else model_number
+        part_label = f"{part_number} ({part_name})" if part_name else part_number
+        compat_count = detail_data.get("compatible_models_count") or 0
+
+        if compatible is True:
+            base = f"Yes — {part_label} is compatible with {model_label}."
+        elif compatible is False:
+            base = f"No — {part_label} is not compatible with {model_label}."
+        elif compat_count > 0:
+            # Model not in our partial index — can't confirm or deny
+            base = (
+                f"Model {model_number} was not found among the compatible models "
+                f"indexed for {part_label}. "
+                f"check PartSelect for the full compatibility list."
+            )
         else:
-            base = f"No — {part_number} is not compatible with {model_number}."
-        if part_name:
-            base += f" ({part_name})"
-        if source_url:
-            base += f" Source: {source_url}"
+            base = f"We couldn't determine compatibility for {part_label} with {model_label}."
+
+        if note:
+            base += f"\n\n{note}"
         return base
 
     if response_type == "product":
@@ -75,7 +119,6 @@ def build_grounded_message(response_type: Optional[str], detail_data: Optional[d
         price = detail_data.get("price") or ""
         in_stock = detail_data.get("in_stock")
         description = detail_data.get("description") or ""
-        source_url = detail_data.get("source_url") or ""
 
         base = f"{name or part_number}."
         if price:
@@ -84,29 +127,23 @@ def build_grounded_message(response_type: Optional[str], detail_data: Optional[d
             base += "In stock." if bool(in_stock) else "Out of stock."
         if description:
             base += f" {description}"
-        if source_url:
-            base += f" Source: {source_url}"
         return _normalize_ws(base)
 
     if response_type == "installation":
         part_number = detail_data.get("part_number") or ""
         part_name = detail_data.get("part_name") or ""
         steps = detail_data.get("steps") or []
-        source_url = detail_data.get("source_url") or ""
 
         shown = steps[:6]
         base = f"Installation steps for {part_name or part_number}:"
         if shown:
             base += " " + " ".join([f"Step {i+1}: {s}" for i, s in enumerate(shown)])
-        if source_url:
-            base += f" Source: {source_url}"
         return _normalize_ws(base)
 
     if response_type == "troubleshooting":
         symptom = detail_data.get("symptom") or ""
         matched_symptom = detail_data.get("matched_symptom") or ""
         causes = detail_data.get("causes") or []
-        source_url = detail_data.get("source_url") or ""
 
         top_causes = []
         for c in causes[:4]:
@@ -117,23 +154,18 @@ def build_grounded_message(response_type: Optional[str], detail_data: Optional[d
         base = f"Troubleshooting for {symptom or matched_symptom}:"
         if top_causes:
             base += " Likely causes: " + "; ".join(top_causes) + "."
-        if source_url:
-            base += f" Source: {source_url}"
         return _normalize_ws(base)
 
     if response_type == "search_results":
         parts = detail_data.get("parts") or []
         query = detail_data.get("query") or ""
         appliance_type = detail_data.get("appliance_type") or ""
-        source_url = detail_data.get("source_url") or ""
 
         part_numbers = [p.get("part_number") for p in parts if isinstance(p, dict) and p.get("part_number")]
         shown = part_numbers[:5]
         base = f"Search results for '{query}' ({appliance_type}): found {len(parts)} parts."
         if shown:
             base += " Examples: " + ", ".join(shown) + "."
-        if source_url:
-            base += f" Source: {source_url}"
         return _normalize_ws(base)
 
     # Default safe fallback.
@@ -167,7 +199,7 @@ def validate_and_maybe_ground(
     # Validate key tokens/citations based on response_type.
     try:
         if response_type == "compatibility":
-            expected_compatible = bool(detail_data.get("compatible"))
+            expected_compatible = detail_data.get("compatible") is True
             if not compatibility_claims_match(msg, expected_compatible):
                 return grounded
 
@@ -218,5 +250,9 @@ def validate_and_maybe_ground(
         # Fail closed: if validation errors, return grounded rewrite.
         return grounded
 
-    return assistant_message
+    # Deterministic URL/note appending: if tool data contains important links
+    # or notes that the LLM omitted, append them so the user always sees them.
+    msg = _append_missing_links(msg, detail_data)
+
+    return msg
 
