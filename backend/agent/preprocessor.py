@@ -34,7 +34,7 @@ _MODEL_NUMBER_RE = re.compile(r"\b[A-Z]{2,}[\w-]*\d[\w-]*\b", re.IGNORECASE)
 
 # Filter out common false positives for model numbers
 _MODEL_FALSE_POSITIVES = {
-    "ps11752778", "the", "and", "for", "not", "how", "can", "this",
+    "the", "and", "for", "not", "how", "can", "this",
     "what", "with", "from", "that", "have", "will", "are", "was",
 }
 

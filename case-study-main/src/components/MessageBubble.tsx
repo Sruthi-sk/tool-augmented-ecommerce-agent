@@ -1,5 +1,6 @@
 "use client";
 
+import ReactMarkdown from "react-markdown";
 import { ChatMessage } from "@/types/chat";
 
 interface Props {
@@ -26,17 +27,33 @@ export default function MessageBubble({ message }: Props) {
           </div>
         ) : (
           <>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">
-              {message.content}
-            </p>
+            <div className="text-sm leading-relaxed">
+              <ReactMarkdown
+                components={{
+                  a: ({ href, children }) => (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`underline ${isUser ? "text-blue-200" : "text-[var(--ps-blue)]"}`}
+                    >
+                      {children}
+                    </a>
+                  ),
+                  p: ({ children }) => (
+                    <p className="mb-1 last:mb-0">{children}</p>
+                  ),
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
             {message.sourceUrl && !isUser && (
               <a
                 href={message.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`text-xs mt-2 block underline ${
-                  isUser ? "text-blue-200" : "text-[var(--ps-blue)]"
-                }`}
+                className="text-xs mt-2 block underline text-[var(--ps-blue)]"
               >
                 Source: PartSelect
               </a>

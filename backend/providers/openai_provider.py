@@ -1,5 +1,7 @@
 """OpenAI LLM provider — default provider using function calling."""
+import asyncio
 import json
+import logging
 from typing import AsyncIterator
 
 from openai import AsyncOpenAI
@@ -7,10 +9,12 @@ from openai import AsyncOpenAI
 from config import OPENAI_API_KEY
 from providers.base import LLMProvider, LLMResponse, LLMChunk, ToolCall
 
+logger = logging.getLogger(__name__)
+
 
 class OpenAIProvider(LLMProvider):
-    def __init__(self, model: str = "gpt-4o"):
-        self._client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    def __init__(self, model: str = "gpt-4o", max_retries: int = 3):
+        self._client = AsyncOpenAI(api_key=OPENAI_API_KEY, max_retries=max_retries)
         self._model = model
 
     async def generate(
@@ -27,7 +31,16 @@ class OpenAIProvider(LLMProvider):
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
 
-        response = await self._client.chat.completions.create(**kwargs)
+        for attempt in range(3):
+            try:
+                response = await self._client.chat.completions.create(**kwargs)
+                break
+            except Exception as e:
+                if attempt < 2:
+                    logger.warning(f"OpenAI call failed (attempt {attempt + 1}), retrying: {e}")
+                    await asyncio.sleep(2 ** attempt)
+                else:
+                    raise
         choice = response.choices[0]
         message = choice.message
 

@@ -21,36 +21,32 @@ def registry():
 
 
 @pytest.fixture
-def mock_cache():
-    cache = AsyncMock()
-    cache.get = AsyncMock(return_value=None)
-    cache.set = AsyncMock()
-    async def _get_or_fetch(key, fetcher, **kw):
-        return await fetcher()
-    cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
-    return cache
-
-
-@pytest.fixture
-def mock_retriever():
-    return AsyncMock()
+def mock_knowledge_service():
+    ks = AsyncMock()
+    ks.search_parts = AsyncMock()
+    ks.get_part_details = AsyncMock()
+    ks.check_compatibility = AsyncMock()
+    ks.get_installation_guide = AsyncMock()
+    ks.diagnose_troubleshooting = AsyncMock(return_value={"causes": [], "source_urls": []})
+    return ks
 
 
 # --- search_parts ---
 
 @pytest.fixture
-def search_registry(registry, mock_cache, mock_retriever):
-    register_search_tool(registry, mock_cache, mock_retriever)
+def search_registry(registry, mock_knowledge_service):
+    register_search_tool(registry, knowledge_service=mock_knowledge_service)
     return registry
 
 
 @pytest.mark.asyncio
-async def test_search_parts_returns_list(search_registry, mock_retriever):
+async def test_search_parts_returns_list(search_registry, mock_knowledge_service):
     """search_parts returns a list of part summaries."""
-    from retrieval.scraper import PartSummary
-    mock_retriever.search.return_value = [
-        PartSummary(part_number="PS11752778", name="Water Filter", price="$24.99", url="/PS11752778.htm"),
-    ]
+    mock_knowledge_service.search_parts.return_value = {
+        "parts": [
+            {"part_number": "PS11752778", "name": "Water Filter", "price": "$24.99", "url": "/PS11752778.htm"}
+        ]
+    }
     result = await search_registry.execute("search_parts", {"query": "water filter", "appliance_type": "refrigerator"})
     assert isinstance(result, dict)
     assert "parts" in result
@@ -59,9 +55,9 @@ async def test_search_parts_returns_list(search_registry, mock_retriever):
 
 
 @pytest.mark.asyncio
-async def test_search_parts_empty_results(search_registry, mock_retriever):
+async def test_search_parts_empty_results(search_registry, mock_knowledge_service):
     """search_parts returns empty list when nothing matches."""
-    mock_retriever.search.return_value = []
+    mock_knowledge_service.search_parts.return_value = {"parts": []}
     result = await search_registry.execute("search_parts", {"query": "nonexistent", "appliance_type": "refrigerator"})
     assert result["parts"] == []
 
@@ -69,19 +65,22 @@ async def test_search_parts_empty_results(search_registry, mock_retriever):
 # --- get_part_details ---
 
 @pytest.fixture
-def details_registry(registry, mock_cache, mock_retriever):
-    register_part_details_tool(registry, mock_cache, mock_retriever)
+def details_registry(registry, mock_knowledge_service):
+    register_part_details_tool(registry, knowledge_service=mock_knowledge_service)
     return registry
 
 
 @pytest.mark.asyncio
-async def test_get_part_details_returns_data(details_registry, mock_retriever):
+async def test_get_part_details_returns_data(details_registry, mock_knowledge_service):
     """get_part_details returns structured part information."""
-    from retrieval.scraper import PartData
-    mock_retriever.fetch_part.return_value = PartData(
-        part_number="PS11752778", name="Water Filter", price="$24.99",
-        in_stock=True, description="Fits Whirlpool", source_url="https://www.partselect.com/PS11752778.htm",
-    )
+    mock_knowledge_service.get_part_details.return_value = {
+        "part_number": "PS11752778",
+        "name": "Water Filter",
+        "price": "$24.99",
+        "in_stock": True,
+        "description": "Fits Whirlpool",
+        "source_url": "https://www.partselect.com/PS11752778.htm",
+    }
     result = await details_registry.execute("get_part_details", {"part_number": "PS11752778"})
     assert result["part_number"] == "PS11752778"
     assert result["name"] == "Water Filter"
@@ -89,9 +88,9 @@ async def test_get_part_details_returns_data(details_registry, mock_retriever):
 
 
 @pytest.mark.asyncio
-async def test_get_part_details_not_found(details_registry, mock_retriever):
+async def test_get_part_details_not_found(details_registry, mock_knowledge_service):
     """get_part_details returns error when part not found."""
-    mock_retriever.fetch_part.return_value = None
+    mock_knowledge_service.get_part_details.return_value = {"error": "not found", "part_number": "PS00000000"}
     result = await details_registry.execute("get_part_details", {"part_number": "PS00000000"})
     assert "error" in result
 
@@ -99,20 +98,22 @@ async def test_get_part_details_not_found(details_registry, mock_retriever):
 # --- check_compatibility ---
 
 @pytest.fixture
-def compat_registry(registry, mock_cache, mock_retriever):
-    register_compatibility_tool(registry, mock_cache, mock_retriever)
+def compat_registry(registry, mock_knowledge_service):
+    register_compatibility_tool(registry, knowledge_service=mock_knowledge_service)
     return registry
 
 
 @pytest.mark.asyncio
-async def test_check_compatibility_compatible(compat_registry, mock_retriever):
+async def test_check_compatibility_compatible(compat_registry, mock_knowledge_service):
     """check_compatibility returns compatible=True when model is in list."""
-    from retrieval.scraper import PartData
-    mock_retriever.fetch_part.return_value = PartData(
-        part_number="PS11752778", name="Water Filter", price="$24.99",
-        in_stock=True, description="Fits Whirlpool", source_url="https://www.partselect.com/PS11752778.htm",
-        compatible_models=["WDT780SAEM1", "WRF535SWHZ"],
-    )
+    mock_knowledge_service.check_compatibility.return_value = {
+        "compatible": True,
+        "part_number": "PS11752778",
+        "part_name": "Water Filter",
+        "model_number": "WDT780SAEM1",
+        "compatible_models_count": 2,
+        "source_url": "https://www.partselect.com/PS11752778.htm",
+    }
     result = await compat_registry.execute("check_compatibility", {
         "part_number": "PS11752778", "model_number": "WDT780SAEM1",
     })
@@ -120,14 +121,16 @@ async def test_check_compatibility_compatible(compat_registry, mock_retriever):
 
 
 @pytest.mark.asyncio
-async def test_check_compatibility_incompatible(compat_registry, mock_retriever):
+async def test_check_compatibility_incompatible(compat_registry, mock_knowledge_service):
     """check_compatibility returns compatible=False when model not in list."""
-    from retrieval.scraper import PartData
-    mock_retriever.fetch_part.return_value = PartData(
-        part_number="PS11752778", name="Water Filter", price="$24.99",
-        in_stock=True, description="Fits Whirlpool", source_url="https://www.partselect.com/PS11752778.htm",
-        compatible_models=["WDT780SAEM1"],
-    )
+    mock_knowledge_service.check_compatibility.return_value = {
+        "compatible": False,
+        "part_number": "PS11752778",
+        "part_name": "Water Filter",
+        "model_number": "UNKNOWN123",
+        "compatible_models_count": 1,
+        "source_url": "https://www.partselect.com/PS11752778.htm",
+    }
     result = await compat_registry.execute("check_compatibility", {
         "part_number": "PS11752778", "model_number": "UNKNOWN123",
     })
@@ -137,20 +140,20 @@ async def test_check_compatibility_incompatible(compat_registry, mock_retriever)
 # --- get_installation_guide ---
 
 @pytest.fixture
-def install_registry(registry, mock_cache, mock_retriever):
-    register_installation_tool(registry, mock_cache, mock_retriever)
+def install_registry(registry, mock_knowledge_service):
+    register_installation_tool(registry, knowledge_service=mock_knowledge_service)
     return registry
 
 
 @pytest.mark.asyncio
-async def test_get_installation_guide(install_registry, mock_retriever):
+async def test_get_installation_guide(install_registry, mock_knowledge_service):
     """get_installation_guide returns steps."""
-    from retrieval.scraper import PartData
-    mock_retriever.fetch_part.return_value = PartData(
-        part_number="PS11752778", name="Water Filter", price="$24.99",
-        in_stock=True, description="Fits Whirlpool", source_url="https://www.partselect.com/PS11752778.htm",
-        installation_steps=["Turn off water supply", "Remove old filter", "Insert new filter"],
-    )
+    mock_knowledge_service.get_installation_guide.return_value = {
+        "part_number": "PS11752778",
+        "part_name": "Water Filter",
+        "steps": ["Turn off water supply", "Remove old filter", "Insert new filter"],
+        "source_url": "https://www.partselect.com/PS11752778.htm",
+    }
     result = await install_registry.execute("get_installation_guide", {"part_number": "PS11752778"})
     assert "steps" in result
     assert len(result["steps"]) >= 1
@@ -158,9 +161,9 @@ async def test_get_installation_guide(install_registry, mock_retriever):
 
 
 @pytest.mark.asyncio
-async def test_get_installation_guide_not_found(install_registry, mock_retriever):
+async def test_get_installation_guide_not_found(install_registry, mock_knowledge_service):
     """get_installation_guide returns error when part not found."""
-    mock_retriever.fetch_part.return_value = None
+    mock_knowledge_service.get_installation_guide.return_value = {"error": "not found", "part_number": "PS00000000"}
     result = await install_registry.execute("get_installation_guide", {"part_number": "PS00000000"})
     assert "error" in result
 
@@ -168,8 +171,8 @@ async def test_get_installation_guide_not_found(install_registry, mock_retriever
 # --- diagnose_symptom ---
 
 @pytest.fixture
-def symptom_registry(registry, mock_cache, mock_retriever):
-    register_symptom_tool(registry, mock_cache, mock_retriever)
+def symptom_registry(registry, mock_knowledge_service):
+    register_symptom_tool(registry, knowledge_service=mock_knowledge_service)
     return registry
 
 
@@ -198,28 +201,28 @@ async def test_diagnose_symptom_with_model(symptom_registry):
 
 # --- All tools register on shared registry ---
 
-def test_all_tools_register(mock_cache, mock_retriever):
+def test_all_tools_register(mock_knowledge_service):
     """All 5 tools can register on a single registry."""
     reg = ToolRegistry()
-    register_search_tool(reg, mock_cache, mock_retriever)
-    register_part_details_tool(reg, mock_cache, mock_retriever)
-    register_compatibility_tool(reg, mock_cache, mock_retriever)
-    register_installation_tool(reg, mock_cache, mock_retriever)
-    register_symptom_tool(reg, mock_cache, mock_retriever)
+    register_search_tool(reg, knowledge_service=mock_knowledge_service)
+    register_part_details_tool(reg, knowledge_service=mock_knowledge_service)
+    register_compatibility_tool(reg, knowledge_service=mock_knowledge_service)
+    register_installation_tool(reg, knowledge_service=mock_knowledge_service)
+    register_symptom_tool(reg, knowledge_service=mock_knowledge_service)
 
     tools = reg.list_tools()
     names = {t["name"] for t in tools}
     assert names == {"search_parts", "get_part_details", "check_compatibility", "get_installation_guide", "diagnose_symptom"}
 
 
-def test_all_tools_generate_openai_schemas(mock_cache, mock_retriever):
+def test_all_tools_generate_openai_schemas(mock_knowledge_service):
     """All tools produce valid OpenAI function schemas."""
     reg = ToolRegistry()
-    register_search_tool(reg, mock_cache, mock_retriever)
-    register_part_details_tool(reg, mock_cache, mock_retriever)
-    register_compatibility_tool(reg, mock_cache, mock_retriever)
-    register_installation_tool(reg, mock_cache, mock_retriever)
-    register_symptom_tool(reg, mock_cache, mock_retriever)
+    register_search_tool(reg, knowledge_service=mock_knowledge_service)
+    register_part_details_tool(reg, knowledge_service=mock_knowledge_service)
+    register_compatibility_tool(reg, knowledge_service=mock_knowledge_service)
+    register_installation_tool(reg, knowledge_service=mock_knowledge_service)
+    register_symptom_tool(reg, knowledge_service=mock_knowledge_service)
 
     schemas = reg.get_schemas("openai")
     assert len(schemas) == 5

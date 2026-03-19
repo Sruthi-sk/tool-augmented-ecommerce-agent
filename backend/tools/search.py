@@ -1,15 +1,11 @@
-"""search_parts tool — search PartSelect for parts by query."""
-from dataclasses import asdict
+"""search_parts tool — search structured index for parts by query."""
 
-from retrieval.cache import CacheLayer
-from retrieval.scraper import PartSelectRetriever
 from tools.registry import ToolRegistry
 
 
 def register_search_tool(
     registry: ToolRegistry,
-    cache: CacheLayer,
-    retriever: PartSelectRetriever,
+    knowledge_service,
 ) -> None:
     @registry.register(
         name="search_parts",
@@ -31,14 +27,9 @@ def register_search_tool(
         },
     )
     async def search_parts(query: str, appliance_type: str) -> dict:
-        async def fetcher():
-            results = await retriever.search(query, appliance_type)
-            return [asdict(r) for r in results]
-
-        cache_key = f"search:{appliance_type}:{query.lower().strip()}"
-        parts = await cache.get_or_fetch(cache_key, fetcher, ttl_hours=6)
+        parts_result = await knowledge_service.search_parts(query=query, appliance_type=appliance_type)
         return {
-            "parts": parts,
+            "parts": parts_result["parts"],
             "query": query,
             "appliance_type": appliance_type,
             "source_url": f"https://www.partselect.com/Search.aspx?q={query}",

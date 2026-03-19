@@ -1,15 +1,11 @@
-"""check_compatibility tool — check if a part is compatible with a model."""
-from dataclasses import asdict
+"""check_compatibility tool — check compatibility from structured index."""
 
-from retrieval.cache import CacheLayer
-from retrieval.scraper import PartSelectRetriever
 from tools.registry import ToolRegistry
 
 
 def register_compatibility_tool(
     registry: ToolRegistry,
-    cache: CacheLayer,
-    retriever: PartSelectRetriever,
+    knowledge_service,
 ) -> None:
     @registry.register(
         name="check_compatibility",
@@ -30,34 +26,6 @@ def register_compatibility_tool(
         },
     )
     async def check_compatibility(part_number: str, model_number: str) -> dict:
-        async def fetcher():
-            part = await retriever.fetch_part(part_number)
-            if part is None:
-                return None
-            return asdict(part)
-
-        cache_key = f"part:{part_number.upper()}"
-        part_data = await cache.get_or_fetch(cache_key, fetcher)
-
-        if part_data is None:
-            return {
-                "error": f"Part {part_number} not found.",
-                "part_number": part_number,
-                "model_number": model_number,
-                "compatible": False,
-            }
-
-        compatible_models = part_data.get("compatible_models", [])
-        model_upper = model_number.upper()
-        is_compatible = any(
-            model_upper in m.upper() for m in compatible_models
+        return await knowledge_service.check_compatibility(
+            part_number=part_number, model_number=model_number
         )
-
-        return {
-            "compatible": is_compatible,
-            "part_number": part_number,
-            "part_name": part_data.get("name", ""),
-            "model_number": model_number,
-            "compatible_models_count": len(compatible_models),
-            "source_url": part_data.get("source_url", ""),
-        }

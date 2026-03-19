@@ -37,7 +37,13 @@ class PartSelectRetriever:
     def __init__(self):
         self._client = httpx.AsyncClient(
             headers={
-                "User-Agent": "Mozilla/5.0 (compatible; PartSelectAgent/1.0)"
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/131.0.0.0 Safari/537.36"
+                ),
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
             },
             timeout=15.0,
             follow_redirects=True,
@@ -117,15 +123,47 @@ class PartSelectRetriever:
         return results
 
     async def fetch_part(self, part_number: str) -> Optional[PartData]:
-        """Fetch and parse a part detail page from PartSelect."""
-        url = f"{BASE_URL}/PS{part_number}.htm" if not part_number.startswith("PS") else f"{BASE_URL}/{part_number}.htm"
+        """Fetch and parse a part detail page from PartSelect.
+
+        Strategy: direct URL first, then fall back to search if that fails
+        (PartSelect URLs include a slug we may not know).
+        """
+        pn = part_number if part_number.startswith("PS") else f"PS{part_number}"
+        url = f"{BASE_URL}/{pn}.htm"
         try:
             resp = await self._client.get(url)
             resp.raise_for_status()
-            return self.parse_part_page(resp.text, str(resp.url))
+            part = self.parse_part_page(resp.text, str(resp.url))
+            if part.name:  # parsed successfully
+                return part
         except httpx.HTTPError as e:
-            logger.warning(f"Failed to fetch part {part_number}: {e}")
-            return None
+            logger.info(f"Direct URL failed for {pn}, falling back to search: {e}")
+
+        # Fallback: search for the part number and use the first result URL
+        try:
+            search_resp = await self._client.get(
+                f"{BASE_URL}/Search.aspx", params={"q": pn}
+            )
+            search_resp.raise_for_status()
+            final_url = str(search_resp.url)
+
+            # If the search redirected to a part page, parse it directly
+            if pn.upper() in final_url.upper() and "/Search.aspx" not in final_url:
+                return self.parse_part_page(search_resp.text, final_url)
+
+            # Otherwise parse search results and fetch the first match
+            results = self.parse_search_results(search_resp.text)
+            for r in results:
+                if pn.upper() in r.part_number.upper() or pn.upper() in r.url.upper():
+                    detail_resp = await self._client.get(
+                        r.url if r.url.startswith("http") else f"{BASE_URL}{r.url}"
+                    )
+                    detail_resp.raise_for_status()
+                    return self.parse_part_page(detail_resp.text, str(detail_resp.url))
+        except httpx.HTTPError as e:
+            logger.warning(f"Search fallback also failed for {pn}: {e}")
+
+        return None
 
     async def search(self, query: str, appliance_type: str = "") -> list[PartSummary]:
         """Search PartSelect for parts matching a query."""

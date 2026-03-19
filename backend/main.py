@@ -6,18 +6,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from config import FRONTEND_URL, LLM_PROVIDER, CACHE_DB_PATH
+from config import FRONTEND_URL, LLM_PROVIDER, BOOTSTRAP_FROM_SEED_ON_STARTUP
 from agent.orchestrator import AgentOrchestrator
 from agent.session import InMemorySessionStore
-from retrieval.cache import CacheLayer
-from retrieval.scraper import PartSelectRetriever
+from index.structured_store import StructuredStore
+from index.help_vector_store import HelpVectorIndex
+from index.knowledge_service import KnowledgeService
+from ingestion.build_partselect_index import ensure_structured_index
 from tools.registry import ToolRegistry
 from tools.search import register_search_tool
 from tools.part_details import register_part_details_tool
 from tools.compatibility import register_compatibility_tool
 from tools.installation import register_installation_tool
 from tools.symptom import register_symptom_tool
-from seed.loader import load_seed_data
 
 # Global orchestrator — initialized on startup
 _orchestrator: Optional[AgentOrchestrator] = None
@@ -37,23 +38,28 @@ def _create_provider(provider_name: str):
 async def lifespan(app: FastAPI):
     global _orchestrator
 
-    # Initialize components
-    cache = CacheLayer(CACHE_DB_PATH)
-    await cache.initialize()
+    # Ensure structured indexes exist locally (no network).
+    await ensure_structured_index(bootstrap_from_seed=BOOTSTRAP_FROM_SEED_ON_STARTUP)
 
-    retriever = PartSelectRetriever()
+    structured_store = StructuredStore()
+    await structured_store.initialize()
+
+    help_vector_index = HelpVectorIndex()
+    await help_vector_index.initialize()
+
+    knowledge_service = KnowledgeService(
+        structured_store=structured_store,
+        help_vector_index=help_vector_index,
+    )
     session_store = InMemorySessionStore()
 
     # Register all tools
     registry = ToolRegistry()
-    register_search_tool(registry, cache, retriever)
-    register_part_details_tool(registry, cache, retriever)
-    register_compatibility_tool(registry, cache, retriever)
-    register_installation_tool(registry, cache, retriever)
-    register_symptom_tool(registry, cache, retriever)
-
-    # Load seed data into cache
-    await load_seed_data(cache)
+    register_search_tool(registry, knowledge_service=knowledge_service)
+    register_part_details_tool(registry, knowledge_service=knowledge_service)
+    register_compatibility_tool(registry, knowledge_service=knowledge_service)
+    register_installation_tool(registry, knowledge_service=knowledge_service)
+    register_symptom_tool(registry, knowledge_service=knowledge_service)
 
     # Create provider and orchestrator
     provider = _create_provider(LLM_PROVIDER)
@@ -67,8 +73,8 @@ async def lifespan(app: FastAPI):
     yield
 
     # Cleanup
-    await cache.close()
-    await retriever.close()
+    await structured_store.close()
+    await help_vector_index.close()
 
 
 app = FastAPI(title="PartSelect Chat Agent", version="1.0.0", lifespan=lifespan)

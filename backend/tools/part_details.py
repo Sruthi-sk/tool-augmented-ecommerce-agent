@@ -1,15 +1,11 @@
-"""get_part_details tool — fetch full details for a specific part."""
-from dataclasses import asdict
+"""get_part_details tool — fetch full details for a specific part from structured index."""
 
-from retrieval.cache import CacheLayer
-from retrieval.scraper import PartSelectRetriever
 from tools.registry import ToolRegistry
 
 
 def register_part_details_tool(
     registry: ToolRegistry,
-    cache: CacheLayer,
-    retriever: PartSelectRetriever,
+    knowledge_service,
 ) -> None:
     @registry.register(
         name="get_part_details",
@@ -26,16 +22,4 @@ def register_part_details_tool(
         },
     )
     async def get_part_details(part_number: str) -> dict:
-        async def fetcher():
-            part = await retriever.fetch_part(part_number)
-            if part is None:
-                return None
-            return asdict(part)
-
-        cache_key = f"part:{part_number.upper()}"
-        result = await cache.get_or_fetch(cache_key, fetcher)
-
-        if result is None:
-            return {"error": f"Part {part_number} not found.", "part_number": part_number}
-
-        return result
+        return await knowledge_service.get_part_details(part_number=part_number)

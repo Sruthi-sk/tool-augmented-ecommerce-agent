@@ -7,6 +7,7 @@ from agent.preprocessor import preprocess
 from agent.session import Session, SessionStore
 from providers.base import LLMProvider, LLMResponse, ToolCall
 from tools.registry import ToolRegistry
+from agent.validation import validate_and_maybe_ground
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +111,13 @@ class AgentOrchestrator:
             session.update(**pre.entities)
             await self._session_store.save(session)
 
-        # 3. Scope gate
-        if not pre.is_in_scope:
+        # 3. Scope gate — skip refusal if session has active context
+        #    (follow-ups like "yes" / "sure" won't match keywords but are valid)
+        has_session_context = bool(
+            session.conversation_history
+            and (session.part_number or session.model_number)
+        )
+        if not pre.is_in_scope and not has_session_context:
             session.add_message(role="user", content=message)
             session.add_message(role="assistant", content=pre.refusal_message)
             await self._session_store.save(session)
@@ -153,13 +159,18 @@ class AgentOrchestrator:
                 "suggested_actions": [],
             }
 
-        # 6. If tool calls, execute and compose
+        # 6. If tool calls, execute (bounded) and compose
         detail_data = None
         response_type = None
         source_url = None
 
-        if response.tool_calls:
-            tool_call = response.tool_calls[0]  # Handle first tool call
+        max_tool_calls = 2
+        tool_call_count = 0
+
+        # The LLM may request a first tool call, and optionally a second tool call
+        # if it needs more exact facts (e.g., search -> details -> compatibility).
+        while response.tool_calls and tool_call_count < max_tool_calls:
+            tool_call = response.tool_calls[0]  # Handle first tool call from this LLM response
 
             try:
                 tool_result = await self._registry.execute(tool_call.name, tool_call.arguments)
@@ -171,33 +182,43 @@ class AgentOrchestrator:
             source_url = tool_result.get("source_url")
             response_type = self._infer_response_type(tool_call.name)
 
-            # Update session with tool result
+            # Update session with tool result (for follow-ups)
             session.update(
                 last_tool_result=tool_result,
                 last_source_url=source_url,
             )
 
-            # Build follow-up messages for composition
+            # Append tool call + tool result to messages
             llm_messages.append(_build_assistant_tool_call_message(tool_call, self._provider_name))
             llm_messages.append(_build_tool_result_message(tool_call, tool_result, self._provider_name))
+            tool_call_count += 1
 
-            # Second LLM call — compose natural language from tool result
+            # Next LLM call:
+            # - If we can still call more tools, allow tool calling.
+            # - Otherwise, disable tools to force natural language composition.
+            next_tools = tool_schemas if tool_call_count < max_tool_calls else []
             try:
-                response = await self._provider.generate(llm_messages, system, tool_schemas)
+                response = await self._provider.generate(llm_messages, system, next_tools)
             except Exception as e:
                 logger.error(f"LLM composition failed: {e}")
                 response = LLMResponse(content="I found some results but had trouble formatting the response.")
+                break
 
-        # 7. Finalize
+        # 7. Finalize (deterministic grounding/validation)
         assistant_message = response.content or "I wasn't able to generate a response."
-        session.add_message(role="assistant", content=assistant_message)
+        validated_message = validate_and_maybe_ground(
+            assistant_message=assistant_message,
+            response_type=response_type,
+            detail_data=detail_data,
+        )
+        session.add_message(role="assistant", content=validated_message)
         await self._session_store.save(session)
 
         suggested = self._suggest_actions(response_type, detail_data)
 
         return {
             "type": "response",
-            "message": assistant_message,
+            "message": validated_message,
             "detail_data": detail_data,
             "response_type": response_type,
             "source_url": source_url,
