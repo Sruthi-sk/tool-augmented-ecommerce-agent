@@ -287,14 +287,15 @@ def _normalize_part_url(url: str) -> str:
 def _discover_part_urls(html: str, base_url: str) -> list[str]:
     """Extract unique part detail URLs from a category/listing page.
 
-    Deduplicates on the canonical URL (no query string, no fragment) so that
-    variants like ?SourceCode=18#CustomerReview don't produce redundant fetches.
+    Looks for parts in `div.nf__part.mb-3` containers first (the structured
+    listing), then falls back to scanning all links for /PS{number} patterns.
+    Deduplicates on the canonical URL (no query string, no fragment).
     """
     soup = BeautifulSoup(html, "html.parser")
     seen: set[str] = set()
     urls: list[str] = []
-    for a in soup.find_all("a", href=True):
-        href = str(a["href"])
+
+    def _add(href: str) -> None:
         full_url = _normalize_part_url(urljoin(base_url, href))
         if (
             re.search(r"/PS\d+", full_url, re.IGNORECASE)
@@ -303,7 +304,61 @@ def _discover_part_urls(html: str, base_url: str) -> list[str]:
         ):
             seen.add(full_url)
             urls.append(full_url)
+
+    # Structured listing: div.nf__part.mb-3 > a.nf__part__detail__title
+    for part_div in soup.select("div.nf__part.mb-3"):
+        a = part_div.select_one("a.nf__part__detail__title")
+        if a and a.get("href"):
+            _add(a["href"])
+
+    # Fallback: any link matching /PS{digits}
+    if not urls:
+        for a in soup.find_all("a", href=True):
+            _add(str(a["href"]))
+
     return urls
+
+
+def _discover_brand_links(html: str, base_url: str) -> list[str]:
+    """Extract brand page URLs from the first ul.nf__links on a category page."""
+    soup = BeautifulSoup(html, "html.parser")
+    ul = soup.select_one("ul.nf__links")
+    if not ul:
+        return []
+    links: list[str] = []
+    seen: set[str] = set()
+    for a in ul.select("li a[href]"):
+        href = urljoin(base_url, a["href"])
+        if href not in seen and BASE_URL in href:
+            seen.add(href)
+            links.append(href)
+    return links
+
+
+def _discover_related_page_links(html: str, base_url: str, appliance_type: str) -> list[str]:
+    """Extract 'Related {Appliance} Parts' sub-category URLs from a brand page.
+
+    Mirrors the webagent scraper logic: find section-title elements containing
+    'Related ... Parts', then grab links from the next ul.nf__links sibling.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    keyword = f"Related {appliance_type.capitalize()} Parts"
+    links: list[str] = []
+    seen: set[str] = set()
+
+    for title_el in soup.select(".section-title"):
+        if keyword not in (title_el.get_text(strip=True) or ""):
+            continue
+        # Walk forward from this element to find the next ul.nf__links
+        for sibling in title_el.find_all_next():
+            if sibling.name == "ul" and "nf__links" in (sibling.get("class") or []):
+                for a in sibling.select("li a[href]"):
+                    href = urljoin(base_url, a["href"])
+                    if href not in seen and BASE_URL in href:
+                        seen.add(href)
+                        links.append(href)
+                break  # only the first ul after this title
+    return links
 
 
 # ─── DB writes ────────────────────────────────────────────────────────────────
@@ -475,21 +530,78 @@ while (waited < maxWait) {
 """,
     )
 
+    # Lighter config for listing/brand pages (no JS wait for models/stories)
+    listing_config = CrawlerRunConfig(
+        wait_until="domcontentloaded",
+        page_timeout=60_000,
+        magic=True,
+    )
+
     all_part_urls: list[tuple[str, str]] = []
+    seen_part_urls: set[str] = set()
+
+    category_counts: dict[str, int] = {}
+
+    def _collect(urls: list[str], appliance_type: str) -> int:
+        """Add new part URLs, return count of newly added."""
+        added = 0
+        for u in urls:
+            if u not in seen_part_urls and category_counts.get(appliance_type, 0) < limit_per_category:
+                seen_part_urls.add(u)
+                all_part_urls.append((u, appliance_type))
+                category_counts[appliance_type] = category_counts.get(appliance_type, 0) + 1
+                added += 1
+        return added
 
     async with AsyncWebCrawler(config=browser_config) as crawler:
-        # ── Step 1: discover part URLs from each category page ────────────────
+        # ── Step 1: Category → Brand links → Related pages → Part URLs ────────
         for cat_url, appliance_type in CATEGORY_URLS:
             logger.info("Discovering %s parts from %s", appliance_type, cat_url)
-            result = await crawler.arun(url=cat_url, config=run_config)
+            result = await crawler.arun(url=cat_url, config=listing_config)
             if not result.success:
                 logger.warning("Failed to fetch category page %s", cat_url)
                 continue
-            urls = _discover_part_urls(result.html, cat_url)
-            logger.info("  Found %d part URLs (keeping up to %d)", len(urls), limit_per_category)
-            all_part_urls.extend(
-                (u, appliance_type) for u in urls[:limit_per_category]
-            )
+
+            # Parts directly on the category page (usually ~10)
+            direct = _discover_part_urls(result.html, cat_url)
+            _collect(direct, appliance_type)
+            logger.info("  Category page: %d direct part URLs", len(direct))
+
+            # Brand links (Whirlpool, LG, Samsung, etc.)
+            brand_links = _discover_brand_links(result.html, cat_url)
+            logger.info("  Found %d brand links", len(brand_links))
+
+            # Visit each brand page to find parts + related sub-category pages
+            pages_to_visit: list[str] = list(brand_links)
+            visited_pages: set[str] = set()
+
+            for page_url in pages_to_visit:
+                if page_url in visited_pages:
+                    continue
+                visited_pages.add(page_url)
+
+                if category_counts.get(appliance_type, 0) >= limit_per_category:
+                    logger.info("  Reached limit of %d parts for %s", limit_per_category, appliance_type)
+                    break
+
+                page_result = await crawler.arun(url=page_url, config=listing_config)
+                if not page_result.success:
+                    logger.warning("  Failed to fetch %s", page_url)
+                    continue
+
+                # Extract part URLs from this page
+                page_parts = _discover_part_urls(page_result.html, page_url)
+                added = _collect(page_parts, appliance_type)
+                logger.info("  %s → %d parts (+%d new)", page_url.split("/")[-1] or page_url, len(page_parts), added)
+
+                # Discover "Related Parts" sub-category links and queue them
+                related = _discover_related_page_links(page_result.html, page_url, appliance_type)
+                for rel_url in related:
+                    if rel_url not in visited_pages:
+                        pages_to_visit.append(rel_url)
+
+            logger.info("  %s total: visited %d pages, found %d unique part URLs",
+                         appliance_type, len(visited_pages), len(all_part_urls))
 
         if not all_part_urls:
             logger.error("No part URLs discovered — aborting.")
@@ -540,6 +652,16 @@ while (waited < maxWait) {
     guide_count = await scrape_and_ingest_repair_guides(
         db_path=db_path, concurrency=concurrency
     )
+    # ── Step 4: build FAISS semantic index over help_chunks ──────────────────
+    try:
+        from index.help_vector_store import HelpVectorIndex
+
+        hvi = HelpVectorIndex(structured_db_path=db_path)
+        vec_count = await hvi.build_index()
+        logger.info("Built FAISS semantic index: %d vectors", vec_count)
+    except Exception as exc:
+        logger.warning("FAISS index build skipped: %s", exc)
+
     logger.info(
         "Done. Parts: %d indexed, %d failed. Repair guides: %d indexed.",
         stats["ok"], stats["fail"], guide_count,
