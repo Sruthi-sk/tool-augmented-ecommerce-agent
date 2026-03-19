@@ -335,25 +335,43 @@ def _discover_brand_links(html: str, base_url: str) -> list[str]:
     return links
 
 
-def _discover_related_page_links(html: str, base_url: str, appliance_type: str) -> list[str]:
-    """Extract 'Related {Appliance} Parts' sub-category URLs from a brand page.
+def _discover_subcategory_links(html: str, base_url: str, appliance_type: str) -> list[str]:
+    """Extract sub-category URLs from a brand page.
 
-    Mirrors the webagent scraper logic: find section-title elements containing
-    'Related ... Parts', then grab links from the next ul.nf__links sibling.
+    Looks for section titles containing "Related ... Parts" or "Appliance Types"
+    (e.g. "Related Admiral Dishwasher Parts", "Admiral Dishwasher Appliance Types")
+    and grabs links from the next ul.nf__links after each matching title.
     """
     soup = BeautifulSoup(html, "html.parser")
-    keyword = f"Related {appliance_type.capitalize()} Parts"
+    # Match titles like "Related {Brand} Dishwasher Parts" or "{Brand} Dishwasher Appliance Types"
+    at = appliance_type.lower()
     links: list[str] = []
     seen: set[str] = set()
 
+    # Generic parent pages to skip (these cause circular discovery)
+    generic_suffixes = {
+        f"/{at.capitalize()}-Parts.htm",        # /Dishwasher-Parts.htm
+        f"/{at.capitalize()}-Parts.htm".lower(), # just in case
+    }
+
     for title_el in soup.select(".section-title"):
-        if keyword not in (title_el.get_text(strip=True) or ""):
+        title_text = (title_el.get_text(strip=True) or "").lower()
+        is_related = "related" in title_text and at in title_text and "parts" in title_text
+        is_types = "appliance types" in title_text and at in title_text
+        if not (is_related or is_types):
             continue
-        # Walk forward from this element to find the next ul.nf__links
+        # Walk forward to find the next ul.nf__links
         for sibling in title_el.find_all_next():
             if sibling.name == "ul" and "nf__links" in (sibling.get("class") or []):
                 for a in sibling.select("li a[href]"):
                     href = urljoin(base_url, a["href"])
+                    # Skip generic parent category pages and brand-only pages
+                    path = urlparse(href).path
+                    if any(path.endswith(s) for s in generic_suffixes):
+                        continue
+                    # Skip brand-only pages like /Admiral-Parts.htm (no appliance type)
+                    if re.match(r"^/[A-Z][a-z]+-Parts\.htm$", path):
+                        continue
                     if href not in seen and BASE_URL in href:
                         seen.add(href)
                         links.append(href)
@@ -595,7 +613,7 @@ while (waited < maxWait) {
                 logger.info("  %s → %d parts (+%d new)", page_url.split("/")[-1] or page_url, len(page_parts), added)
 
                 # Discover "Related Parts" sub-category links and queue them
-                related = _discover_related_page_links(page_result.html, page_url, appliance_type)
+                related = _discover_subcategory_links(page_result.html, page_url, appliance_type)
                 for rel_url in related:
                     if rel_url not in visited_pages:
                         pages_to_visit.append(rel_url)
