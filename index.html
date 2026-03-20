@@ -1,0 +1,316 @@
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,system-ui,sans-serif);background:var(--color-background-tertiary,#f4f4f2);color:var(--color-text-primary,#1a1a1a)}
+:root{--blue:#003DA5;--blue-l:#E6F1FB;--blue-m:#378ADD;--green:#3B6D11;--green-l:#EAF3DE;--amber:#BA7517;--amber-l:#FAEEDA;--red:#A32D2D;--red-l:#FCEBEB;--border:rgba(0,0,0,0.09)}
+.deck{max-width:800px;margin:0 auto;padding:1.5rem}
+.nav{display:flex;align-items:center;gap:12px;margin-bottom:1.25rem}
+.dots{display:flex;gap:6px;flex:1}
+.dot{width:8px;height:8px;border-radius:50%;border:none;cursor:pointer;background:var(--color-border-secondary,rgba(0,0,0,0.18));transition:all .2s;padding:0}
+.dot.on{background:var(--blue);transform:scale(1.2)}
+.ctr{font-size:12px;color:var(--color-text-tertiary,#999);min-width:44px;text-align:right}
+.btn{padding:6px 14px;border:0.5px solid var(--color-border-secondary,rgba(0,0,0,0.2));border-radius:7px;background:transparent;color:var(--color-text-primary,#1a1a1a);cursor:pointer;font-size:12px;font-family:inherit;transition:background .15s}
+.btn:hover{background:var(--color-background-secondary,#ebebea)}
+.btn:disabled{opacity:.3;cursor:default}
+.slide{display:none}
+.slide.on{display:block;animation:up .25s ease}
+@keyframes up{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.card{background:var(--color-background-primary,#fff);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.cover{background:var(--blue);border-radius:14px;padding:3rem 2.5rem;min-height:420px;display:flex;flex-direction:column;justify-content:space-between}
+.cover-label{font-size:11px;font-weight:500;color:rgba(255,255,255,.5);letter-spacing:.08em;text-transform:uppercase}
+.cover-title{font-size:28px;font-weight:500;color:#fff;line-height:1.25;margin:1rem 0 .75rem;max-width:500px}
+.cover-sub{font-size:14px;color:rgba(255,255,255,.65);line-height:1.6;max-width:420px}
+.cover-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:2rem}
+.chip{font-size:11px;padding:4px 11px;border-radius:6px;background:rgba(255,255,255,.13);color:rgba(255,255,255,.9)}
+.cover-author{font-size:13px;color:rgba(255,255,255,.5);margin-top:1.5rem}
+.hdr{padding:1.75rem 2rem 1.25rem;border-bottom:0.5px solid var(--border)}
+.tag{display:inline-block;font-size:11px;font-weight:500;padding:3px 9px;border-radius:5px;margin-bottom:.75rem;background:var(--blue-l);color:var(--blue)}
+.hdr-title{font-size:19px;font-weight:500;line-height:1.3}
+.hdr-sub{font-size:13px;color:var(--color-text-secondary,#555);margin-top:.35rem;line-height:1.5}
+.body{padding:1.5rem 2rem}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:.875rem}
+.ic{background:var(--color-background-secondary,#f8f8f6);border:0.5px solid var(--border);border-radius:9px;padding:.875rem 1rem}
+.ic-title{font-size:12px;font-weight:500;margin-bottom:.35rem;color:var(--color-text-primary,#1a1a1a)}
+.ic-body{font-size:12px;color:var(--color-text-secondary,#555);line-height:1.55}
+.ic-blue{border-left:2.5px solid var(--blue);background:var(--blue-l)}
+.ic-green{border-left:2.5px solid #388e3c;background:var(--green-l)}
+.ic-amber{border-left:2.5px solid var(--amber);background:var(--amber-l)}
+.ic-red{border-left:2.5px solid var(--red);background:var(--red-l)}
+.pipe{display:flex;align-items:stretch;gap:0;margin:1.25rem 0}
+.pstage{flex:1;text-align:center;padding:.6rem .3rem;border-radius:7px;font-size:11px;font-weight:500;line-height:1.4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.ps-det{background:var(--blue-l);color:var(--blue)}
+.ps-llm{background:var(--amber-l);color:var(--amber)}
+.ps-tool{background:var(--green-l);color:var(--green)}
+.pa{color:var(--color-text-tertiary,#aaa);font-size:13px;display:flex;align-items:center;padding:0 3px}
+.pstage small{font-weight:400;font-size:10px;opacity:.8}
+.layers{display:flex;flex-direction:column;gap:6px;margin:1rem 0}
+.layer{display:flex;align-items:flex-start;gap:.75rem;padding:.65rem .875rem;border-radius:8px}
+.layer-label{font-size:12px;font-weight:500;min-width:120px;padding-top:1px}
+.layer-body{font-size:12px;color:var(--color-text-secondary,#555);line-height:1.5}
+.layer-det{background:var(--blue-l)}
+.layer-llm{background:var(--amber-l)}
+.layer-tool{background:var(--green-l)}
+ul.b{list-style:none;display:flex;flex-direction:column;gap:.55rem}
+ul.b li{font-size:13px;color:var(--color-text-secondary,#555);padding-left:1.1rem;position:relative;line-height:1.5}
+ul.b li::before{content:'';position:absolute;left:0;top:7px;width:4px;height:4px;border-radius:50%;background:var(--blue)}
+ul.b li strong{color:var(--color-text-primary,#1a1a1a);font-weight:500}
+.hl{background:var(--blue-l);border-left:2.5px solid var(--blue);border-radius:0 7px 7px 0;padding:.875rem 1rem;font-size:13px;color:var(--color-text-secondary,#555);line-height:1.6;margin-top:1rem}
+.hl strong{color:var(--blue);font-weight:500}
+code{font-family:var(--font-mono,monospace);font-size:11px;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:4px;color:var(--color-text-secondary,#555)}
+.ft{font-size:11px;padding:3px 8px;border-radius:5px;font-weight:500}
+.ft-blue{background:var(--blue-l);color:var(--blue)}
+.ft-green{background:var(--green-l);color:var(--green)}
+.ft-amber{background:var(--amber-l);color:var(--amber)}
+.arr{font-size:11px;color:var(--color-text-tertiary,#bbb)}
+.foot{padding:.875rem 2rem;border-top:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.foot-n{font-size:11px;color:var(--color-text-tertiary,#aaa)}
+.foot-logo{font-size:12px;font-weight:500;color:var(--blue)}
+
+/* Tools table */
+.tool-table{width:100%;border-collapse:collapse;font-size:12px}
+.tool-table th{text-align:left;font-weight:500;font-size:11px;color:var(--color-text-tertiary,#999);padding:.5rem .75rem;border-bottom:0.5px solid var(--border);text-transform:uppercase;letter-spacing:.04em}
+.tool-table td{padding:.65rem .75rem;border-bottom:0.5px solid var(--border);vertical-align:top;line-height:1.5;color:var(--color-text-secondary,#555)}
+.tool-table tr:last-child td{border-bottom:none}
+.tool-table tr:hover td{background:var(--color-background-secondary,#f8f8f6)}
+.tool-name{font-family:var(--font-mono,monospace);font-size:11px;color:var(--blue);font-weight:500;white-space:nowrap}
+.tool-badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:500;margin-top:3px}
+.tb-g{background:var(--green-l);color:var(--green)}
+.tb-b{background:var(--blue-l);color:var(--blue)}
+.tb-a{background:var(--amber-l);color:var(--amber)}
+</style>
+
+<div class="deck">
+  <div class="nav">
+    <div class="dots" id="dots"></div>
+    <span class="ctr" id="ctr">1 / 6</span>
+    <button class="btn" id="pb" onclick="go(-1)">← Prev</button>
+    <button class="btn" id="nb" onclick="go(1)">Next →</button>
+  </div>
+
+  <!-- S1: Cover -->
+  <div class="slide on" id="s1">
+    <div class="cover">
+      <div>
+        <div class="cover-label">PartSelect · Chat Agent Case Study</div>
+        <div class="cover-title">Finding the right appliance part is a precision problem</div>
+        <div class="cover-sub">An AI-powered chat assistant for refrigerator and dishwasher parts — built on a two-service architecture with deterministic grounding and live data fallback.</div>
+      </div>
+      <div>
+        <div class="cover-chips">
+          <span class="chip">Next.js + FastAPI</span>
+          <span class="chip">LLM orchestration</span>
+          <span class="chip">RAG + live fallback</span>
+          <span class="chip">Deterministic grounding</span>
+        </div>
+        <div class="cover-author">Case Study by Sruthi Kuriakose</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- S2: Problem -->
+  <div class="slide" id="s2">
+    <div class="card">
+      <div class="hdr">
+        <div class="tag">The problem</div>
+        <div class="hdr-title">Customers describe symptoms. Parts are indexed by keys, model numbers, and SKUs.</div>
+        <div class="hdr-sub">Wrong part = return, lost trust, support cost. Every answer must be grounded in real data.</div>
+      </div>
+      <div class="body">
+        <div class="g2" style="margin-bottom:1rem">
+          <div class="ic ic-red">
+            <div class="ic-title">The gap</div>
+            <div class="ic-body">"My dishwasher makes a grinding noise" must map to <code>symptom_key='noisy'</code>, then to compatible parts for an exact model number — approximate answers cause failed repairs</div>
+          </div>
+          <div class="ic ic-blue">
+            <div class="ic-title">Scope enforcement</div>
+            <div class="ic-body">Refrigerator and dishwasher parts only. Out-of-scope queries are rejected before any LLM call with a constructive redirect — zero tokens wasted</div>
+          </div>
+        </div>
+        <div class="g2">
+          <div class="ic ic-green">
+            <div class="ic-title">Ground answers in real data</div>
+            <div class="ic-body">All facts come from a pre-indexed SQLite store or live PartSelect scraping — never from LLM memory. Every response includes a source URL tracing back to a real product page</div>
+          </div>
+          <div class="ic ic-amber">
+            <div class="ic-title">Precision over fluency</div>
+            <div class="ic-body">A deterministic post-generation validator rewrites any response where the stated part number, price, compatibility claim, or URL doesn't match the tool result</div>
+          </div>
+        </div>
+        <div class="hl" style="margin-top:1rem">Three layers of correctness: <strong>data quality at ingestion</strong> → <strong>LLM instructed not to speculate</strong> → <strong>deterministic post-generation rewrite</strong> if facts don't match.</div>
+      </div>
+      <div class="foot"><span class="foot-n">Slide 2 of 6</span><span class="foot-logo">PartSelect Agent</span></div>
+    </div>
+  </div>
+
+  <!-- S3: Architecture -->
+  <div class="slide" id="s3">
+    <div class="card">
+      <div class="hdr">
+        <div class="tag">Agentic architecture</div>
+        <div class="hdr-title">LLM as router and composer — not truth source</div>
+      </div>
+      <div class="body">
+        <div class="pipe">
+          <div class="pstage ps-det">Preprocessor<small>deterministic</small></div>
+          <div class="pa">›</div>
+          <div class="pstage ps-llm">LLM pass 1<small>tool routing</small></div>
+          <div class="pa">›</div>
+          <div class="pstage ps-tool">Tool exec<small>KnowledgeService</small></div>
+          <div class="pa">›</div>
+          <div class="pstage ps-llm">LLM pass 2<small>compose prose</small></div>
+          <div class="pa">›</div>
+          <div class="pstage ps-det">Validation<small>deterministic</small></div>
+        </div>
+        <div class="layers">
+          <div class="layer layer-det">
+            <div class="layer-label" style="color:var(--blue)">Stages 1 & 5</div>
+            <div class="layer-body">Regex + keyword scope check before any LLM call — enforces refrigerator/dishwasher constraint, extracts part and model numbers into session state. Post-generation: validator rewrites hallucinated facts; <code>_append_missing_links()</code> ensures URLs are never dropped.</div>
+          </div>
+          <div class="layer layer-llm">
+            <div class="layer-label" style="color:var(--amber)">Stages 2 & 4</div>
+            <div class="layer-body">Pass 1 selects a tool via function calling — no user-facing text. Pass 2 composes natural language from a structured dict with <code>source_url</code>. Two-pass design separates routing failure from prose failure — independently debuggable. Up to 3 tool calls per turn, enabling chains like <code>search → compatibility</code> in one message.</div>
+          </div>
+          <div class="layer layer-tool">
+            <div class="layer-label" style="color:var(--green)">Stage 3</div>
+            <div class="layer-body">6 tools, registered via <code>@registry.register()</code> — schemas auto-generate for OpenAI and Anthropic. All tools go through <code>KnowledgeService</code> (SQLite + FAISS). Sub-10ms execution. Tools never touch storage directly — underlying store is swappable without touching tool code.</div>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="foot-n">Slide 3 of 6</span><span class="foot-logo">PartSelect Agent</span></div>
+    </div>
+  </div>
+
+  <!-- S4: Tools -->
+  <div class="slide" id="s4">
+    <div class="card">
+      <div class="hdr">
+        <div class="tag">Tool registry</div>
+        <div class="hdr-title">6 tools — all registered via <code style="font-size:15px">@registry.register()</code>, schemas auto-generated for OpenAI and Anthropic</div>
+      </div>
+      <div class="body" style="padding-top:1rem">
+        <table class="tool-table">
+          <thead>
+            <tr>
+              <th style="width:170px">Tool</th>
+              <th>What it does</th>
+              <th style="width:90px">Retrieval</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><div class="tool-name">search_parts</div><div class="tool-badge tb-a">query, appliance_type, model_number?</div></td>
+              <td>FTS5 keyword search over parts. When <code>model_number</code> is provided, filters to compatible parts via the <code>part_compatibility</code> table. Falls back to live scraping of the model parts page when the local index is sparse.</td>
+              <td><span class="tool-badge tb-b">SQLite FTS5</span><br><span class="tool-badge tb-a" style="margin-top:3px;display:inline-block">live fallback</span></td>
+            </tr>
+            <tr>
+              <td><div class="tool-name">get_part_details</div><div class="tool-badge tb-a">part_number</div></td>
+              <td>Returns full product info for a PS number — name, price, stock status, MPN, description, compatible models, symptoms, and source URL.</td>
+              <td><span class="tool-badge tb-b">SQLite</span></td>
+            </tr>
+            <tr>
+              <td><div class="tool-name">check_compatibility</div><div class="tool-badge tb-a">part_number, model_number</div></td>
+              <td>Checks if a part fits a model. Local SQLite first → live browser fallback (JS injected into PartSelect's widget) → result cached. Three states: compatible / incompatible / unknown.</td>
+              <td><span class="tool-badge tb-b">SQLite</span><br><span class="tool-badge tb-a" style="margin-top:3px;display:inline-block">live fallback</span></td>
+            </tr>
+            <tr>
+              <td><div class="tool-name">diagnose_symptom</div><div class="tool-badge tb-a">appliance_type, symptom, model_number?</div></td>
+              <td>FAISS semantic match maps natural language ("grinding noise") to a <code>symptom_key</code>, then returns ranked causes with likelihood scores, recommended part types, and repair guide URLs.</td>
+              <td><span class="tool-badge tb-g">FAISS</span><br><span class="tool-badge tb-b" style="margin-top:3px;display:inline-block">SQLite</span></td>
+            </tr>
+            <tr>
+              <td><div class="tool-name">get_installation_guide</div><div class="tool-badge tb-a">part_number</div></td>
+              <td>Returns step-by-step installation instructions and difficulty rating for a part, scraped from repair stories during ingestion.</td>
+              <td><span class="tool-badge tb-b">SQLite</span></td>
+            </tr>
+            <tr>
+              <td><div class="tool-name">lookup_model</div><div class="tool-badge tb-a">model_number</div></td>
+              <td>Scrapes the model's PartSelect page live to return brand, appliance type, common symptoms, part categories with counts, and section headings. Shown when a user asks about a model, not a specific part.</td>
+              <td><span class="tool-badge tb-a">live scrape</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="foot"><span class="foot-n">Slide 4 of 6</span><span class="foot-logo">PartSelect Agent</span></div>
+    </div>
+  </div>
+
+  <!-- S5: Data layer -->
+  <div class="slide" id="s5">
+    <div class="card">
+      <div class="hdr">
+        <div class="tag">Data layer</div>
+        <div class="hdr-title">SQLite + FAISS semantic routing + live compatibility fallback</div>
+        <div class="hdr-sub">Structured facts from the offline index. Semantic routing for natural language symptoms. Real answers for models not yet cached.</div>
+      </div>
+      <div class="body">
+        <div class="g3" style="margin-bottom:1rem">
+          <div class="ic ic-blue">
+            <div class="ic-title">SQLite (offline index)</div>
+            <div class="ic-body">Crawl4AI (Playwright) ingests category → brand → sub-category → part detail pages. 16+ fields per part, up to 500 compatible models, symptoms + install narratives. Every record has a verified <code>source_url</code>. FTS5 with Porter stemming for keyword search.</div>
+          </div>
+          <div class="ic ic-amber">
+            <div class="ic-title">FAISS (routing only)</div>
+            <div class="ic-body">Repair guide chunks embedded via <code>text-embedding-3-small</code> at ingestion. At query time, maps "my fridge makes a grinding noise" → <code>symptom_key</code> via cosine similarity. Adaptive over-fetch guarantees k results. Not a truth source — structured store owns facts.</div>
+          </div>
+          <div class="ic ic-green">
+            <div class="ic-title">Live fallback</div>
+            <div class="ic-body">For models/parts not in the local index: headless Chromium injects JS into PartSelect's compatibility widget. Only definitive results cached. Graceful degradation on 403 — user gets a direct PartSelect link instead of a false negative.</div>
+          </div>
+        </div>
+        <div class="ic-title" style="font-size:12px;color:var(--color-text-secondary,#555);margin-bottom:.6rem">Compatibility resolution chain</div>
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+          <span class="ft ft-blue">Local SQLite hit</span><span class="arr">→ instant, else</span>
+          <span class="ft ft-amber">Live browser check</span><span class="arr">→</span>
+          <span class="ft ft-green">Cache to SQLite</span><span class="arr">→ instant next time. On 403 →</span>
+          <span class="ft ft-amber">Direct PartSelect link</span>
+        </div>
+        <div class="hl" style="margin-top:1rem">Compatibility uses <strong>three states</strong>: <code>True</code>, <code>False</code>, <code>None</code>. <code>None</code> triggers a live check — never a false negative. PartSelect blocks plain HTTP clients (403), so scraping at query time runs via Playwright; the offline index moves that cost to ingestion.</div>
+      </div>
+      <div class="foot"><span class="foot-n">Slide 5 of 6</span><span class="foot-logo">PartSelect Agent</span></div>
+    </div>
+  </div>
+
+  <!-- S6: Extensibility -->
+  <div class="slide" id="s6">
+    <div class="card">
+      <div class="hdr">
+        <div class="tag">Extensibility & scalability</div>
+        <div class="hdr-title">Minimal changes for new tools, providers, and appliances</div>
+        <div class="hdr-sub">Every abstraction has an explicit upgrade path for production scale.</div>
+      </div>
+      <div class="body">
+        <div class="g3" style="margin-bottom:1rem">
+          <div class="ic ic-blue"><div class="ic-title">New tool</div><div class="ic-body"><code>@registry.register()</code> — schemas auto-generate for OpenAI and Anthropic. Orchestrator picks it up automatically. Add one case to <code>DetailPanel.tsx</code>.</div></div>
+          <div class="ic ic-green"><div class="ic-title">New LLM provider</div><div class="ic-body">Implement <code>LLMProvider</code> ABC → set <code>LLM_PROVIDER=yourprovider</code>. Tool schemas auto-translate per provider. All tools unchanged.</div></div>
+          <div class="ic ic-amber"><div class="ic-title">New appliance type</div><div class="ic-body">Add keywords to <code>preprocessor.py</code>, category URL to <code>CATEGORY_URLS</code>, repair index URL to <code>REPAIR_INDEXES</code>. <code>appliance_type</code> threads through the whole stack automatically.</div></div>
+        </div>
+        <ul class="b">
+          <li><strong>Persistent sessions</strong> — swap <code>InMemorySessionStore</code> with Redis via the same <code>SessionStore</code> ABC. Zero orchestrator changes.</li>
+          <li><strong>Storage at scale</strong> — SQLite is read-only at runtime, replaceable with Postgres through the same <code>KnowledgeService</code> interface. FTS5 scales to ~100K rows, then Postgres <code>tsvector + GIN</code>.</li>
+          <li><strong>Vector search at scale</strong> — FAISS flat index is O(n), fine for current symptom count. Swap to IVF-PQ or a dedicated ANN service at scale via the same interface.</li>
+          <li><strong>Horizontal scaling</strong> — stateless request handling via <code>session_id</code> header. Supports multi-instance deployments with a persistent session store.</li>
+        </ul>
+      </div>
+      <div class="foot"><span class="foot-n">Slide 6 of 6</span><span class="foot-logo">PartSelect Agent</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const N=6;let c=1;
+const dots=document.getElementById('dots');
+for(let i=1;i<=N;i++){const b=document.createElement('button');b.className='dot'+(i===1?' on':'');b.onclick=()=>goTo(i);dots.appendChild(b);}
+function goTo(n){
+  document.getElementById('s'+c).classList.remove('on');
+  dots.children[c-1].classList.remove('on');
+  c=Math.max(1,Math.min(N,n));
+  document.getElementById('s'+c).classList.add('on');
+  dots.children[c-1].classList.add('on');
+  document.getElementById('ctr').textContent=c+' / '+N;
+  document.getElementById('pb').disabled=c===1;
+  document.getElementById('nb').disabled=c===N;
+}
+function go(d){goTo(c+d)}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')go(1);if(e.key==='ArrowLeft')go(-1)});
+goTo(1);
+</script>
