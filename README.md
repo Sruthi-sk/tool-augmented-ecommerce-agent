@@ -2,6 +2,8 @@
 
 An AI-powered chat assistant for the PartSelect e-commerce website, specializing in **refrigerator and dishwasher** replacement parts. Built as a two-service architecture with a Next.js frontend and FastAPI backend.
 
+View slides [here](https://sruthi-sk.github.io/tool-augmented-ecommerce-agent/)
+
 ## Tech Stack
 
 | Layer | Technology | Role |
